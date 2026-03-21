@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane
+    xmlns="http://javafx.com/javafx/21"
+    xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.library.controller.DashboardController"
+    fx:id="mainPane"
+    prefWidth="1100" prefHeight="680"
+    style="-fx-background-color: #eef1fb;">
+
+    <!-- ══════════════ SIDEBAR ══════════════ -->
+    <left>
+        <VBox styleClass="sidebar" prefWidth="230" spacing="0">
+
+            <!-- Brand -->
+            <VBox style="-fx-padding: 28 20 20 20; -fx-spacing: 6;
+                         -fx-background-color: #141428;">
+                <HBox spacing="10" alignment="CENTER_LEFT">
+                    <Label text="📚" style="-fx-font-size: 26px;"/>
+                    <VBox spacing="1">
+                        <Label text="The British"
+                               style="-fx-font-size: 14px;
+                                      -fx-font-weight: bold;
+                                      -fx-text-fill: white;"/>
+                        <Label text="College Library"
+                               style="-fx-font-size: 11px;
+                                      -fx-text-fill: #7c8db5;"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+
+            <Separator style="-fx-background-color: #252545;"/>
+            <Region prefHeight="12"/>
+
+            <!-- Nav label -->
+            <Label text="MAIN MENU"
+                   style="-fx-text-fill: #4a5568;
+                          -fx-font-size: 10px;
+                          -fx-font-weight: bold;
+                          -fx-padding: 0 0 6 24;"/>
+
+            <!-- Nav Items -->
+            <Button fx:id="btnDashboard"
+                    text="🏠   Dashboard"
+                    styleClass="nav-button"
+                    onAction="#showDashboard"/>
+            <Button fx:id="btnBooks"
+                    text="📖   Books"
+                    styleClass="nav-button"
+                    onAction="#showBooks"/>
+            <Button fx:id="btnMembers"
+                    text="👥   Members"
+                    styleClass="nav-button"
+                    onAction="#showMembers"/>
+            <Button fx:id="btnIssueReturn"
+                    text="🔄   Issue / Return"
+                    styleClass="nav-button"
+                    onAction="#showIssueReturn"/>
+
+            <Region VBox.vgrow="ALWAYS"/>
+
+            <!-- User Profile Box -->
+            <VBox style="-fx-background-color: #252545;
+                         -fx-padding: 16 20 16 20;
+                         -fx-spacing: 8;">
+                <HBox spacing="12" alignment="CENTER_LEFT">
+                    <StackPane>
+                        <Circle radius="20" fill="#4361ee"/>
+                        <Label fx:id="avatarLabel" text="A"
+                               style="-fx-text-fill: white;
+                                      -fx-font-weight: bold;
+                                      -fx-font-size: 16px;"/>
+                    </StackPane>
+                    <VBox spacing="2">
+                        <Label fx:id="welcomeLabel" text="Admin"
+                               style="-fx-text-fill: white;
+                                      -fx-font-size: 13px;
+                                      -fx-font-weight: bold;"/>
+                        <Label fx:id="roleLabel" text="ADMIN"
+                               style="-fx-text-fill: #4361ee;
+                                      -fx-font-size: 10px;
+                                      -fx-font-weight: bold;"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+
+            <!-- Logout -->
+            <Button text="🚪   Logout"
+                    styleClass="nav-button"
+                    style="-fx-text-fill: #e63946;
+                           -fx-background-color: #1a1a2e;"
+                    onAction="#handleLogout"/>
+        </VBox>
+    </left>
+
+    <!-- ══════════════ CONTENT ══════════════ -->
+    <center>
+        <ScrollPane fitToWidth="true"
+                    style="-fx-background-color: #eef1fb;
+                           -fx-background: #eef1fb;">
+            <content>
+                <VBox spacing="20"
+                      style="-fx-padding: 28;
+                             -fx-background-color: #eef1fb;">
+
+                    <!-- ── GREETING HEADER ────────────────────── -->
+                    <HBox alignment="CENTER_LEFT">
+                        <VBox spacing="4" HBox.hgrow="ALWAYS">
+                            <Label fx:id="greetingLabel"
+                                   text="Good Morning! 👋"
+                                   style="-fx-font-size: 26px;
+                                          -fx-font-weight: bold;
+                                          -fx-text-fill: #1a1a2e;"/>
+                            <Label text="Here's what's happening at the library today."
+                                   style="-fx-font-size: 13px;
+                                          -fx-text-fill: #a0aec0;"/>
+                        </VBox>
+                        <Label fx:id="dateLabel" text="Today"
+                               style="-fx-font-size: 13px;
+                                      -fx-font-weight: bold;
+                                      -fx-text-fill: #4361ee;
+                                      -fx-background-color: white;
+                                      -fx-background-radius: 8;
+                                      -fx-padding: 6 14 6 14;
+                                      -fx-border-color: #c5cef7;
+                                      -fx-border-radius: 8;"/>
+                    </HBox>
+
+                    <!-- ── STAT CARDS ─────────────────────────── -->
+                    <HBox spacing="16">
+
+                        <!-- Total Books — Blue filled -->
+                        <VBox HBox.hgrow="ALWAYS" spacing="12"
+                              style="-fx-background-color: #4361ee;
+                                     -fx-background-radius: 14;
+                                     -fx-padding: 22;
+                                     -fx-effect: dropshadow(gaussian,
+                                       rgba(67,97,238,0.4),16,0,0,6);">
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <Label text="📚" style="-fx-font-size: 22px;"/>
+                                <Label text="TOTAL BOOKS"
+                                       style="-fx-font-size: 11px;
+                                              -fx-font-weight: bold;
+                                              -fx-text-fill: rgba(255,255,255,0.75);"/>
+                            </HBox>
+                            <Label fx:id="totalBooksLabel" text="0"
+                                   style="-fx-font-size: 40px;
+                                          -fx-font-weight: bold;
+                                          -fx-text-fill: white;"/>
+                            <Label text="in collection"
+                                   style="-fx-font-size: 11px;
+                                          -fx-text-fill: rgba(255,255,255,0.6);"/>
+                        </VBox>
+
+                        <!-- Total Members — White card -->
+                        <VBox HBox.hgrow="ALWAYS" spacing="12"
+                              style="-fx-background-color: white;
+                                     -fx-background-radius: 14;
+                                     -fx-padding: 22;
+                                     -fx-effect: dropshadow(gaussian,
+                                       rgba(67,97,238,0.08),16,0,0,4);">
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <Label text="👥" style="-fx-font-size: 22px;"/>
+                                <Label text="MEMBERS"
+                                       style="-fx-font-size: 11px;
+                                              -fx-font-weight: bold;
+                                              -fx-text-fill: #a0aec0;"/>
+                            </HBox>
+                            <Label fx:id="totalMembersLabel" text="0"
+                                   style="-fx-font-size: 40px;
+                                          -fx-font-weight: bold;
+                                          -fx-text-fill: #1a1a2e;"/>
+                            <Label text="registered"
+                                   style="-fx-font-size: 11px;
+                                          -fx-text-fill: #c0c8e0;"/>
+                        </VBox>
+
+                        <!-- Books Issued — White card -->
+                        <VBox HBox.hgrow="ALWAYS" spacing="12"
+                              style="-fx-background-color: white;
+                                     -fx-background-radius: 14;
+                                     -fx-padding: 22;
+                                     -fx-effect: dropshadow(gaussian,
+                                       rgba(67,97,238,0.08),16,0,0,4);">
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <Label text="🔄" style="-fx-font-size: 22px;"/>
+                                <Label text="ISSUED"
+                                       style="-fx-font-size: 11px;
+                                              -fx-font-weight: bold;
+                                              -fx-text-fill: #a0aec0;"/>
+                            </HBox>
+                            <Label fx:id="issuedBooksLabel" text="0"
+                                   style="-fx-font-size: 40px;
+                                          -fx-font-weight: bold;
+                                          -fx-text-fill: #1a1a2e;"/>
+                            <Label text="currently out"
+                                   style="-fx-font-size: 11px;
+                                          -fx-text-fill: #c0c8e0;"/>
+                        </VBox>
+
+                        <!-- Overdue — Red accent (10%) -->
+                        <VBox HBox.hgrow="ALWAYS" spacing="12"
+                              style="-fx-background-color: white;
+                                     -fx-background-radius: 14;
+                                     -fx-padding: 22;
+                                     -fx-effect: dropshadow(gaussian,
+                                       rgba(67,97,238,0.08),16,0,0,4);
+                                     -fx-border-color: #e63946;
+                                     -fx-border-width: 0 0 0 4;
+                                     -fx-border-radius: 14;">
+                            <HBox alignment="CENTER_LEFT" spacing="10">
+                                <Label text="⚠️" style="-fx-font-size: 22px;"/>
+                                <Label text="OVERDUE"
+                                       style="-fx-font-size: 11px;
+                                              -fx-font-weight: bold;
+                                              -fx-text-fill: #e63946;"/>
+                            </HBox>
+                            <Label fx:id="overdueLabel" text="0"
+                                   style="-fx-font-size: 40px;
+                                          -fx-font-weight: bold;
+                                          -fx-text-fill: #e63946;"/>
+                            <Label text="need attention"
+                                   style="-fx-font-size: 11px;
+                                          -fx-text-fill: #f0a0a5;"/>
+                        </VBox>
+
+                    </HBox>
+
+                    <!-- ── BOTTOM ROW ──────────────────────────── -->
+                    <HBox spacing="16">
+
+                        <!-- Quick Actions -->
+                        <VBox spacing="14" HBox.hgrow="ALWAYS"
+                              style="-fx-background-color: white;
+                                     -fx-background-radius: 14;
+                                     -fx-padding: 22;
+                                     -fx-effect: dropshadow(gaussian,
+                                       rgba(67,97,238,0.07),14,0,0,4);">
+
+                            <Label text="⚡  Quick Actions"
+                                   style="-fx-font-size: 14px;
+                                          -fx-font-weight: bold;
+                                          -fx-text-fill: #1a1a2e;"/>
+                            <Separator/>
+
+                            <HBox spacing="10">
+                                <Button text="➕  Add Book"
+                                        prefHeight="46"
+                                        HBox.hgrow="ALWAYS"
+                                        maxWidth="Infinity"
+                                        styleClass="btn-primary"
+                                        onAction="#showBooks"/>
+                                <Button text="👤  Add Member"
+                                        prefHeight="46"
+                                        HBox.hgrow="ALWAYS"
+                                        maxWidth="Infinity"
+                                        style="-fx-background-color: #eef1fb;
+                                               -fx-text-fill: #4361ee;
+                                               -fx-font-weight: bold;
+                                               -fx-font-size: 13px;
+                                               -fx-background-radius: 8;
+                                               -fx-cursor: hand;"
+                                        onAction="#showMembers"/>
+                            </HBox>
+                            <HBox spacing="10">
+                                <Button text="📤  Issue Book"
+                                        prefHeight="46"
+                                        HBox.hgrow="ALWAYS"
+                                        maxWidth="Infinity"
+                                        style="-fx-background-color: #eef1fb;
+                                               -fx-text-fill: #4361ee;
+                                               -fx-font-weight: bold;
+                                               -fx-font-size: 13px;
+                                               -fx-background-radius: 8;
+                                               -fx-cursor: hand;"
+                                        onAction="#showIssueReturn"/>
+                                <Button text="📥  Return Book"
+                                        prefHeight="46"
+                                        HBox.hgrow="ALWAYS"
+                                        maxWidth="Infinity"
+                                        style="-fx-background-color: #fff0f1;
+                                               -fx-text-fill: #e63946;
+                                               -fx-font-weight: bold;
+                                               -fx-font-size: 13px;
+                                               -fx-background-radius: 8;
+                                               -fx-cursor: hand;"
+                                        onAction="#showIssueReturn"/>
+                            </HBox>
+                        </VBox>
+
+                        <!-- Right Panel -->
+                        <VBox spacing="14" prefWidth="300">
+
+                            <!-- System Status -->
+                            <VBox spacing="10"
+                                  style="-fx-background-color: #1a1a2e;
+                                         -fx-background-radius: 14;
+                                         -fx-padding: 20;">
+                                <Label text="📡  System Status"
+                                       style="-fx-font-size: 13px;
+                                              -fx-font-weight: bold;
+                                              -fx-text-fill: white;"/>
+                                <Separator style="-fx-background-color: #252545;"/>
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <Circle radius="5" fill="#2dc653"/>
+                                    <Label text="System Online"
+                                           style="-fx-text-fill: #a0aec0;
+                                                  -fx-font-size: 12px;"/>
+                                </HBox>
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <Circle radius="5" fill="#4361ee"/>
+                                    <Label text="Database Connected"
+                                           style="-fx-text-fill: #a0aec0;
+                                                  -fx-font-size: 12px;"/>
+                                </HBox>
+                                <HBox spacing="10" alignment="CENTER_LEFT">
+                                    <Circle radius="5" fill="#4361ee"/>
+                                    <Label text="Offline Mode Active"
+                                           style="-fx-text-fill: #a0aec0;
+                                                  -fx-font-size: 12px;"/>
+                                </HBox>
+                            </VBox>
+
+                            <!-- Tips -->
+                            <VBox spacing="10"
+                                  style="-fx-background-color: white;
+                                         -fx-background-radius: 14;
+                                         -fx-padding: 20;
+                                         -fx-effect: dropshadow(gaussian,
+                                           rgba(67,97,238,0.07),14,0,0,4);">
+                                <Label text="💡  Quick Tips"
+                                       style="-fx-font-size: 13px;
+                                              -fx-font-weight: bold;
+                                              -fx-text-fill: #1a1a2e;"/>
+                                <Separator/>
+                                <HBox spacing="8" alignment="TOP_LEFT">
+                                    <Label text="•"
+                                           style="-fx-text-fill: #4361ee;
+                                                  -fx-font-weight: bold;"/>
+                                    <Label text="Default loan period is 14 days"
+                                           style="-fx-font-size: 12px;
+                                                  -fx-text-fill: #718096;"
+                                           wrapText="true"
+                                           HBox.hgrow="ALWAYS"/>
+                                </HBox>
+                                <HBox spacing="8" alignment="TOP_LEFT">
+                                    <Label text="•"
+                                           style="-fx-text-fill: #4361ee;
+                                                  -fx-font-weight: bold;"/>
+                                    <Label text="Fines are calculated automatically on return"
+                                           style="-fx-font-size: 12px;
+                                                  -fx-text-fill: #718096;"
+                                           wrapText="true"
+                                           HBox.hgrow="ALWAYS"/>
+                                </HBox>
+                                <HBox spacing="8" alignment="TOP_LEFT">
+                                    <Label text="•"
+                                           style="-fx-text-fill: #e63946;
+                                                  -fx-font-weight: bold;"/>
+                                    <Label text="Red numbers mean overdue — act fast!"
+                                           style="-fx-font-size: 12px;
+                                                  -fx-text-fill: #718096;"
+                                           wrapText="true"
+                                           HBox.hgrow="ALWAYS"/>
+                                </HBox>
+                            </VBox>
+
+                        </VBox>
+                    </HBox>
+
+                    <!-- Footer -->
+                    <Label text="The British College Library  •  v1.0.0  •  JavaFX + SQLite"
+                           style="-fx-font-size: 11px; -fx-text-fill: #c0c8e0;"/>
+
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+</BorderPane>

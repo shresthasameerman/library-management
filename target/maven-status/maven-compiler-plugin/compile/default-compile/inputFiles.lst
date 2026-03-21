@@ -1,0 +1,11 @@
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/controller/LoginController.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/util/SessionManager.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/Book.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/util/AlertHelper.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/controller/DashboardController.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/database/DatabaseConnection.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/database/DatabaseInitializer.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/controller/BookController.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/BookService.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/App.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/User.java
