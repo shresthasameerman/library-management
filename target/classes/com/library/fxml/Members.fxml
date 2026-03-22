@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox
+    xmlns="http://javafx.com/javafx/21"
+    xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="com.library.controller.MemberController"
+    spacing="20"
+    style="-fx-padding: 30;
+           -fx-background-color: #eef1fb;">
+
+    <!-- ── HEADER ───────────────────────────────────────────────── -->
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <Label text="👥 Members Management"
+                   style="-fx-font-size: 22px;
+                          -fx-font-weight: bold;
+                          -fx-text-fill: #1a1a2e;"/>
+            <Label text="Register and manage library members"
+                   style="-fx-font-size: 13px;
+                          -fx-text-fill: #a0aec0;"/>
+        </VBox>
+        <Button text="➕  Register Member"
+                styleClass="btn-primary"
+                prefWidth="180" prefHeight="40"
+                onAction="#handleAddMember"/>
+    </HBox>
+
+    <!-- ── SEARCH + FILTER ROW ──────────────────────────────────── -->
+    <HBox spacing="12" alignment="CENTER_LEFT">
+        <TextField
+            fx:id="searchField"
+            promptText="🔍  Search by name, ID, department..."
+            styleClass="search-field"
+            prefWidth="360"
+            onKeyReleased="#handleSearch"/>
+
+        <ComboBox
+            fx:id="departmentFilter"
+            promptText="All Departments"
+            prefWidth="200"
+            prefHeight="40"
+            onAction="#handleDepartmentFilter"/>
+
+        <CheckBox
+            fx:id="showInactiveCheck"
+            text="Show Inactive"
+            style="-fx-font-size: 13px; -fx-text-fill: #4a5568;"
+            onAction="#handleShowInactive"/>
+
+        <Button text="Clear"
+                styleClass="btn-secondary"
+                prefHeight="40"
+                onAction="#handleClearSearch"/>
+    </HBox>
+
+    <!-- ── MEMBERS TABLE ────────────────────────────────────────── -->
+    <TableView
+        fx:id="membersTable"
+        VBox.vgrow="ALWAYS"
+        styleClass="table-view">
+
+        <columns>
+            <TableColumn fx:id="colId"
+                         text="ID" prefWidth="55"/>
+            <TableColumn fx:id="colMemberId"
+                         text="Member ID" prefWidth="110"/>
+            <TableColumn fx:id="colName"
+                         text="Full Name" prefWidth="200"/>
+            <TableColumn fx:id="colDepartment"
+                         text="Department" prefWidth="150"/>
+            <TableColumn fx:id="colPhone"
+                         text="Phone" prefWidth="120"/>
+            <TableColumn fx:id="colEmail"
+                         text="Email" prefWidth="180"/>
+            <TableColumn fx:id="colStatus"
+                         text="Status" prefWidth="80"/>
+            <TableColumn fx:id="colActions"
+                         text="Actions" prefWidth="160"/>
+        </columns>
+
+        <placeholder>
+            <Label text="No members found. Click '➕ Register Member' to add one."
+                   style="-fx-text-fill: #a0aec0; -fx-font-size: 13px;"/>
+        </placeholder>
+    </TableView>
+
+    <!-- ── STATUS BAR ───────────────────────────────────────────── -->
+    <HBox alignment="CENTER_LEFT">
+        <Label fx:id="statusLabel"
+               text="Total: 0 member(s)"
+               style="-fx-text-fill: #a0aec0; -fx-font-size: 12px;"/>
+    </HBox>
+
+</VBox>
