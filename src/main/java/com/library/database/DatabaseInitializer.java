@@ -50,6 +50,16 @@ public class DatabaseInitializer {
                 )
             """);
 
+            // Safe migration: add member_type if missing
+            try {
+                stmt.execute(
+                    "ALTER TABLE members ADD COLUMN member_type TEXT DEFAULT 'Student'"
+                );
+                System.out.println("✓ member_type column added.");
+            } catch (SQLException ignored) {
+                // Column already exists — safe to ignore
+            }
+
             // ── Issue Records table ───────────────────────────────────
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS issue_records (
@@ -63,9 +73,11 @@ public class DatabaseInitializer {
                     status      TEXT DEFAULT 'ISSUED'
                                 CHECK(status IN ('ISSUED','RETURNED','OVERDUE')),
                     FOREIGN KEY(book_id)   REFERENCES books(id),
+
                     FOREIGN KEY(member_id) REFERENCES members(id)
                 )
             """);
+
 
             // ── Seed default admin account ────────────────────────────
             seedDefaultAdmin(conn);

@@ -65,21 +65,23 @@
 
         <columns>
             <TableColumn fx:id="colId"
-                         text="ID" prefWidth="55"/>
+                        text="ID" prefWidth="50"/>
             <TableColumn fx:id="colMemberId"
-                         text="Member ID" prefWidth="110"/>
+                        text="Member ID" prefWidth="100"/>
             <TableColumn fx:id="colName"
-                         text="Full Name" prefWidth="200"/>
+                        text="Full Name" prefWidth="180"/>
+            <TableColumn fx:id="colType"
+                        text="Type" prefWidth="100"/>
             <TableColumn fx:id="colDepartment"
-                         text="Department" prefWidth="150"/>
+                        text="Department" prefWidth="140"/>
             <TableColumn fx:id="colPhone"
-                         text="Phone" prefWidth="120"/>
+                        text="Phone" prefWidth="110"/>
             <TableColumn fx:id="colEmail"
-                         text="Email" prefWidth="180"/>
+                        text="Email" prefWidth="160"/>
             <TableColumn fx:id="colStatus"
-                         text="Status" prefWidth="80"/>
+                        text="Status" prefWidth="75"/>
             <TableColumn fx:id="colActions"
-                         text="Actions" prefWidth="160"/>
+                        text="Actions" prefWidth="190"/>
         </columns>
 
         <placeholder>

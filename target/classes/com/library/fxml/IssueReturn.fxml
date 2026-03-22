@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<StackPane
+    xmlns="http://javafx.com/javafx/21"
+    xmlns:fx="http://javafx.com/fxml/1"
+    prefWidth="1100" prefHeight="680"
+    style="-fx-background-color: #eef1fb;">
+
+    <Label text="🔄 Issue / Return — Coming Next!"
+           style="-fx-font-size: 20px;
+                  -fx-font-weight: bold;
+                  -fx-text-fill: #1a1a2e;"/>
+</StackPane>

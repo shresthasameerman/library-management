@@ -28,6 +28,7 @@ public class MemberController implements Initializable {
     @FXML private TableColumn<Member,Integer> colId;
     @FXML private TableColumn<Member,String>  colMemberId;
     @FXML private TableColumn<Member,String>  colName;
+    @FXML private TableColumn<Member,String>  colType;
     @FXML private TableColumn<Member,String>  colDepartment;
     @FXML private TableColumn<Member,String>  colPhone;
     @FXML private TableColumn<Member,String>  colEmail;
@@ -39,7 +40,8 @@ public class MemberController implements Initializable {
     @FXML private Label                       statusLabel;
 
     private final MemberService          memberService = new MemberService();
-    private final ObservableList<Member> memberList    = FXCollections.observableArrayList();
+    private final ObservableList<Member> memberList    =
+                                         FXCollections.observableArrayList();
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -57,7 +59,37 @@ public class MemberController implements Initializable {
         colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
 
-        // Status column — green Active, red Inactive
+        // ── Type column — badge style ─────────────────────────────────
+        colType.setCellValueFactory(new PropertyValueFactory<>("memberType"));
+        colType.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null) {
+                    setText(null);
+                    setGraphic(null);
+                } else {
+                    Label badge = new Label(
+                        "Staff".equals(value) ? "👨‍💼 Staff" : "🎓 Student"
+                    );
+                    badge.setStyle(
+                        "Staff".equals(value)
+                        ? "-fx-background-color: #fff4e6;" +
+                          "-fx-text-fill: #f77f00;" +
+                          "-fx-font-weight: bold; -fx-font-size: 11px;" +
+                          "-fx-background-radius: 4; -fx-padding: 3 8 3 8;"
+                        : "-fx-background-color: #eef1fb;" +
+                          "-fx-text-fill: #4361ee;" +
+                          "-fx-font-weight: bold; -fx-font-size: 11px;" +
+                          "-fx-background-radius: 4; -fx-padding: 3 8 3 8;"
+                    );
+                    setGraphic(badge);
+                    setText(null);
+                }
+            }
+        });
+
+        // ── Status column ─────────────────────────────────────────────
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colStatus.setCellFactory(col -> new TableCell<>() {
             @Override
@@ -65,7 +97,6 @@ public class MemberController implements Initializable {
                 super.updateItem(value, empty);
                 if (empty || value == null) {
                     setText(null);
-                    setStyle("");
                 } else {
                     setText(value);
                     setStyle("Active".equals(value)
@@ -75,21 +106,32 @@ public class MemberController implements Initializable {
             }
         });
 
-        // Actions column
+        // ── Actions column ────────────────────────────────────────────
         colActions.setCellFactory(col -> new TableCell<>() {
-            private final Button editBtn       = new Button("✏️ Edit");
+            private final Button editBtn       = new Button("✏️");
             private final Button deactivateBtn = new Button("🚫");
-            private final HBox   box           = new HBox(6, editBtn, deactivateBtn);
-
+            private final Button deleteBtn     = new Button("🗑️");
+            private final HBox   box           = new HBox(5,
+                                                   editBtn,
+                                                   deactivateBtn,
+                                                   deleteBtn);
             {
                 editBtn.setStyle(
                     "-fx-background-color: #4361ee; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                    "-fx-cursor: hand; -fx-padding: 4 10 4 10;");
+                    "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
+                editBtn.setTooltip(new Tooltip("Edit member"));
+
                 deactivateBtn.setStyle(
+                    "-fx-background-color: #f77f00; -fx-text-fill: white;" +
+                    "-fx-font-size: 11px; -fx-background-radius: 4;" +
+                    "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
+
+                deleteBtn.setStyle(
                     "-fx-background-color: #e63946; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                    "-fx-cursor: hand; -fx-padding: 4 8 4 8;");
+                    "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
+                deleteBtn.setTooltip(new Tooltip("Permanently remove"));
 
                 editBtn.setOnAction(e -> {
                     Member m = getTableView().getItems().get(getIndex());
@@ -98,6 +140,10 @@ public class MemberController implements Initializable {
                 deactivateBtn.setOnAction(e -> {
                     Member m = getTableView().getItems().get(getIndex());
                     handleDeactivate(m);
+                });
+                deleteBtn.setOnAction(e -> {
+                    Member m = getTableView().getItems().get(getIndex());
+                    handleDelete(m);
                 });
             }
 
@@ -108,19 +154,20 @@ public class MemberController implements Initializable {
                     setGraphic(null);
                 } else {
                     Member m = getTableView().getItems().get(getIndex());
-                    // Change button based on active status
                     if (m.isActive()) {
                         deactivateBtn.setText("🚫");
+                        deactivateBtn.setTooltip(new Tooltip("Deactivate"));
                         deactivateBtn.setStyle(
-                            "-fx-background-color: #e63946; -fx-text-fill: white;" +
+                            "-fx-background-color: #f77f00; -fx-text-fill: white;" +
                             "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                            "-fx-cursor: hand; -fx-padding: 4 8 4 8;");
+                            "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
                     } else {
                         deactivateBtn.setText("✅");
+                        deactivateBtn.setTooltip(new Tooltip("Reactivate"));
                         deactivateBtn.setStyle(
                             "-fx-background-color: #2dc653; -fx-text-fill: white;" +
                             "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                            "-fx-cursor: hand; -fx-padding: 4 8 4 8;");
+                            "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
                     }
                     setGraphic(box);
                 }
@@ -152,10 +199,10 @@ public class MemberController implements Initializable {
         statusLabel.setText("Total: " + count + " member(s)");
     }
 
-    // ── Search ────────────────────────────────────────────────────────
+    // ── Search & Filters ──────────────────────────────────────────────
     @FXML
     private void handleSearch() {
-        String keyword    = searchField.getText().trim();
+        String keyword = searchField.getText().trim();
         boolean activeOnly = !showInactiveCheck.isSelected();
         List<Member> results = memberService.searchMembers(keyword, activeOnly);
         memberList.setAll(results);
@@ -165,20 +212,17 @@ public class MemberController implements Initializable {
     @FXML
     private void handleDepartmentFilter() {
         String selected = departmentFilter.getValue();
+        boolean activeOnly = !showInactiveCheck.isSelected();
         if (selected == null || selected.equals("All Departments")) {
             loadMembers();
         } else {
-            boolean activeOnly = !showInactiveCheck.isSelected();
             List<Member> results = memberService.searchMembers(selected, activeOnly);
             memberList.setAll(results);
             updateStatus(results.size());
         }
     }
 
-    @FXML
-    private void handleShowInactive() {
-        loadMembers();
-    }
+    @FXML private void handleShowInactive() { loadMembers(); }
 
     @FXML
     private void handleClearSearch() {
@@ -188,29 +232,24 @@ public class MemberController implements Initializable {
         loadMembers();
     }
 
-    // ── Add Member ────────────────────────────────────────────────────
     @FXML
-    private void handleAddMember() {
-        openMemberForm(null);
-    }
+    private void handleAddMember() { openMemberForm(null); }
 
     // ── Deactivate / Reactivate ───────────────────────────────────────
     private void handleDeactivate(Member member) {
         if (member.isActive()) {
-            // Check for active issues first
             if (memberService.hasActiveIssues(member.getId())) {
                 AlertHelper.showError("Cannot Deactivate",
-                    member.getName() + " has books that haven't been returned yet.\n" +
-                    "Please return all books before deactivating.");
+                    member.getName() + " still has books issued.\n" +
+                    "Please return all books first.");
                 return;
             }
-
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Deactivate Member");
             confirm.setHeaderText("Deactivate " + member.getName() + "?");
             confirm.setContentText(
-                "This member will lose library access.\n" +
-                "You can reactivate them later."
+                "They will lose library access.\n" +
+                "You can reactivate them anytime."
             );
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
@@ -218,7 +257,6 @@ public class MemberController implements Initializable {
                 loadMembers();
             }
         } else {
-            // Reactivate
             memberService.reactivateMember(member.getId());
             AlertHelper.showSuccess("Reactivated",
                 member.getName() + " is now active again.");
@@ -226,21 +264,69 @@ public class MemberController implements Initializable {
         }
     }
 
+    // ── Permanently Delete ────────────────────────────────────────────
+    private void handleDelete(Member member) {
+        if (memberService.hasActiveIssues(member.getId())) {
+            AlertHelper.showError("Cannot Delete",
+                member.getName() + " still has books issued.\n" +
+                "Please return all books before deleting.");
+            return;
+        }
+
+        ButtonType removeBtn = new ButtonType("Remove",
+                                   ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelBtn = new ButtonType("Cancel",
+                                   ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Remove Member");
+        confirm.setHeaderText("Permanently remove " + member.getName() + "?");
+        confirm.setContentText(
+            "Type: " + member.getMemberType() +
+            " | ID: " + member.getMemberId() + "\n\n" +
+            "⚠ This CANNOT be undone.\n" +
+            "Members with borrowing history cannot be deleted.\n" +
+            "Use 🚫 Deactivate for graduated students with history."
+        );
+        confirm.getButtonTypes().setAll(removeBtn, cancelBtn);
+
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == removeBtn) {
+            boolean deleted = memberService.deleteMember(member.getId());
+            if (deleted) {
+                loadMembers();
+                AlertHelper.showSuccess("Removed",
+                    member.getName() + " removed from the system.");
+            } else {
+                AlertHelper.showError("Cannot Delete",
+                    "This member has borrowing history.\n" +
+                    "Use 🚫 Deactivate instead.");
+            }
+        }
+    }
+
     // ── Member Form (Add / Edit) ──────────────────────────────────────
     private void openMemberForm(Member existing) {
         boolean isEdit = existing != null;
 
-        // ── Fields ───────────────────────────────────────────────────
-        TextField        nameField   = new TextField();
-        TextField        idField     = new TextField();
-        TextField        phoneField  = new TextField();
-        TextField        emailField  = new TextField();
-        ComboBox<String> deptBox     = new ComboBox<>();
-        Label            errorLabel  = new Label();
+        TextField        nameField  = new TextField();
+        TextField        idField    = new TextField();
+        TextField        phoneField = new TextField();
+        TextField        emailField = new TextField();
+        ComboBox<String> deptBox    = new ComboBox<>();
+        ComboBox<String> typeBox    = new ComboBox<>();
+        Label            errorLabel = new Label();
 
         nameField.setPromptText("e.g. Sameer Thapa");
         phoneField.setPromptText("e.g. 9800000000");
         emailField.setPromptText("e.g. sameer@college.edu");
+
+        typeBox.setItems(FXCollections.observableArrayList(
+            "Student", "Staff"
+        ));
+        typeBox.setValue("Student");
+        typeBox.setPrefWidth(Double.MAX_VALUE);
+        typeBox.setPrefHeight(36);
 
         deptBox.setItems(FXCollections.observableArrayList(
             "Computer Science", "Business", "Engineering",
@@ -248,13 +334,21 @@ public class MemberController implements Initializable {
         ));
         deptBox.setPromptText("Select department");
         deptBox.setPrefWidth(Double.MAX_VALUE);
+        deptBox.setPrefHeight(36);
 
-        errorLabel.setStyle("-fx-text-fill: #e63946; -fx-font-size: 12px;");
+        errorLabel.setStyle(
+            "-fx-text-fill: #e63946; -fx-font-size: 12px;"
+        );
 
-        // Auto-generate Member ID for new members
-        if (!isEdit) {
-            idField.setText(memberService.generateMemberId());
+        // Set field sizes
+        for (TextField tf : new TextField[]{
+                nameField, idField, phoneField, emailField}) {
+            tf.setPrefWidth(280);
+            tf.setPrefHeight(36);
         }
+
+        // Auto-generate ID for new members
+        if (!isEdit) idField.setText(memberService.generateMemberId());
 
         // Pre-fill if editing
         if (isEdit) {
@@ -263,9 +357,9 @@ public class MemberController implements Initializable {
             phoneField.setText(existing.getPhone());
             emailField.setText(existing.getEmail());
             deptBox.setValue(existing.getDepartment());
+            typeBox.setValue(existing.getMemberType());
         }
 
-        // ── Layout ────────────────────────────────────────────────────
         String labelStyle =
             "-fx-font-weight: bold; -fx-font-size: 13px;" +
             "-fx-text-fill: #333333;";
@@ -273,15 +367,8 @@ public class MemberController implements Initializable {
         VBox form = new VBox(14);
         form.setPadding(new Insets(24, 28, 10, 28));
         form.setPrefWidth(460);
-
-        // Set field widths
-        nameField.setPrefWidth(280);  nameField.setPrefHeight(36);
-        idField.setPrefWidth(280);    idField.setPrefHeight(36);
-        phoneField.setPrefWidth(280); phoneField.setPrefHeight(36);
-        emailField.setPrefWidth(280); emailField.setPrefHeight(36);
-        deptBox.setPrefHeight(36);
-
         form.getChildren().addAll(
+            fieldBox("Member Type *", labelStyle, typeBox),
             fieldBox("Full Name *",   labelStyle, nameField),
             fieldBox("Member ID *",   labelStyle, idField),
             fieldBox("Phone",         labelStyle, phoneField),
@@ -290,8 +377,7 @@ public class MemberController implements Initializable {
             errorLabel
         );
 
-        // ── Buttons ───────────────────────────────────────────────────
-        Button saveBtn   = new Button(isEdit ? "💾  Update Member"
+        Button saveBtn   = new Button(isEdit ? "💾  Update"
                                              : "➕  Register Member");
         Button cancelBtn = new Button("Cancel");
 
@@ -313,7 +399,6 @@ public class MemberController implements Initializable {
         VBox root = new VBox(0, form, btnBox);
         root.setStyle("-fx-background-color: white;");
 
-        // ── Dialog ────────────────────────────────────────────────────
         Stage dialog = new Stage();
         dialog.setTitle(isEdit ? "Edit Member" : "Register New Member");
         dialog.initModality(Modality.APPLICATION_MODAL);
@@ -324,13 +409,13 @@ public class MemberController implements Initializable {
         cancelBtn.setOnAction(e -> dialog.close());
 
         saveBtn.setOnAction(e -> {
-            String name   = nameField.getText().trim();
-            String mId    = idField.getText().trim();
-            String phone  = phoneField.getText().trim();
-            String email  = emailField.getText().trim();
-            String dept   = deptBox.getValue();
+            String name  = nameField.getText().trim();
+            String mId   = idField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String email = emailField.getText().trim();
+            String dept  = deptBox.getValue();
+            String type  = typeBox.getValue();
 
-            // Validation
             if (name.isEmpty()) {
                 errorLabel.setText("⚠ Full name is required.");
                 return;
@@ -349,6 +434,7 @@ public class MemberController implements Initializable {
                 isEdit ? existing.getId() : 0,
                 name, email, phone, mId,
                 dept != null ? dept : "Other",
+                type != null ? type : "Student",
                 true
             );
 
@@ -361,16 +447,15 @@ public class MemberController implements Initializable {
                 loadMembers();
                 AlertHelper.showSuccess("Success",
                     isEdit ? "Member updated successfully!"
-                           : member.getName() + " registered successfully!");
+                           : member.getName() + " registered!");
             } else {
-                errorLabel.setText("⚠ Failed to save. Please try again.");
+                errorLabel.setText("⚠ Failed to save. Try again.");
             }
         });
 
         dialog.showAndWait();
     }
 
-    // ── Helper: label + field pair ────────────────────────────────────
     private VBox fieldBox(String labelText, String labelStyle,
                           javafx.scene.Node field) {
         Label label = new Label(labelText);
