@@ -3,32 +3,38 @@ package com.library.controller;
 import com.library.model.Book;
 import com.library.service.BookService;
 import com.library.util.AlertHelper;
+import com.library.util.QRCodeUtil;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.geometry.Insets;
+import javafx.stage.Window;
+
 import java.net.URL;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
-import com.library.util.AlertHelper;
 
 public class BookController implements Initializable {
 
     @FXML private TableView<Book>           booksTable;
     @FXML private TableColumn<Book,Integer> colId;
+    @FXML private TableColumn<Book,String>  colAccession;
     @FXML private TableColumn<Book,String>  colTitle;
     @FXML private TableColumn<Book,String>  colAuthor;
-    @FXML private TableColumn<Book,String>  colIsbn;
+    @FXML private TableColumn<Book,String>  colClassification;
     @FXML private TableColumn<Book,String>  colCategory;
     @FXML private TableColumn<Book,Integer> colTotal;
     @FXML private TableColumn<Book,Integer> colAvailable;
@@ -38,7 +44,8 @@ public class BookController implements Initializable {
     @FXML private Label                     statusLabel;
 
     private final BookService          bookService = new BookService();
-    private final ObservableList<Book> bookList    = FXCollections.observableArrayList();
+    private final ObservableList<Book> bookList    =
+        FXCollections.observableArrayList();
 
     @Override
     public void initialize(URL url, ResourceBundle rb) {
@@ -50,52 +57,64 @@ public class BookController implements Initializable {
     // ── Table Setup ───────────────────────────────────────────────────
     private void setupTableColumns() {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colAccession.setCellValueFactory(
+            new PropertyValueFactory<>("accessionNumber"));
         colTitle.setCellValueFactory(new PropertyValueFactory<>("title"));
         colAuthor.setCellValueFactory(new PropertyValueFactory<>("author"));
-        colIsbn.setCellValueFactory(new PropertyValueFactory<>("isbn"));
-        colCategory.setCellValueFactory(new PropertyValueFactory<>("category"));
-        colTotal.setCellValueFactory(new PropertyValueFactory<>("totalCopies"));
-        colAvailable.setCellValueFactory(new PropertyValueFactory<>("availableCopies"));
+        colClassification.setCellValueFactory(
+            new PropertyValueFactory<>("classificationNumber"));
+        colCategory.setCellValueFactory(
+            new PropertyValueFactory<>("category"));
+        colTotal.setCellValueFactory(
+            new PropertyValueFactory<>("totalCopies"));
 
-        // Color available copies: red if 0, green if available
+        // Available — color coded
+        colAvailable.setCellValueFactory(
+            new PropertyValueFactory<>("availableCopies"));
         colAvailable.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(Integer value, boolean empty) {
                 super.updateItem(value, empty);
-                if (empty || value == null) {
-                    setText(null);
-                } else {
-                    setText(value.toString());
-                    setStyle(value == 0
-                        ? "-fx-text-fill: #ef233c; -fx-font-weight: bold;"
-                        : "-fx-text-fill: #2dc653; -fx-font-weight: bold;");
-                }
+                if (empty || value == null) { setText(null); return; }
+                setText(value.toString());
+                setStyle(value == 0
+                    ? "-fx-text-fill: #e63946; -fx-font-weight: bold;"
+                    : "-fx-text-fill: #2dc653; -fx-font-weight: bold;");
             }
         });
 
-        // Action buttons column
+        // Actions — Edit + QR + Delete
         colActions.setCellFactory(col -> new TableCell<>() {
-            private final Button editBtn   = new Button("✏️ Edit");
+            private final Button editBtn   = new Button("✏️");
+            private final Button qrBtn     = new Button("📱 QR");
             private final Button deleteBtn = new Button("🗑️");
-            private final HBox   box       = new HBox(6, editBtn, deleteBtn);
+            private final HBox   box = new HBox(5, editBtn, qrBtn, deleteBtn);
 
             {
                 editBtn.setStyle(
                     "-fx-background-color: #4361ee; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                    "-fx-cursor: hand; -fx-padding: 4 10 4 10;");
+                    "-fx-cursor: hand; -fx-padding: 4 8 4 8;");
+                qrBtn.setStyle(
+                    "-fx-background-color: #7b2ff7; -fx-text-fill: white;" +
+                    "-fx-font-size: 11px; -fx-background-radius: 4;" +
+                    "-fx-cursor: hand; -fx-padding: 4 8 4 8;");
                 deleteBtn.setStyle(
-                    "-fx-background-color: #ef233c; -fx-text-fill: white;" +
+                    "-fx-background-color: #e63946; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
                     "-fx-cursor: hand; -fx-padding: 4 8 4 8;");
 
                 editBtn.setOnAction(e -> {
-                    Book book = getTableView().getItems().get(getIndex());
-                    openBookForm(book);
+                    Book b = getTableView().getItems().get(getIndex());
+                    openBookForm(b);
+                });
+                qrBtn.setOnAction(e -> {
+                    Book b = getTableView().getItems().get(getIndex());
+                    showQRCode(b);
                 });
                 deleteBtn.setOnAction(e -> {
-                    Book book = getTableView().getItems().get(getIndex());
-                    handleDeleteBook(book);
+                    Book b = getTableView().getItems().get(getIndex());
+                    handleDelete(b);
                 });
             }
 
@@ -118,24 +137,19 @@ public class BookController implements Initializable {
         categoryFilter.setValue("All Categories");
     }
 
-    // ── Load / Refresh Books ──────────────────────────────────────────
+    // ── Load / Refresh ────────────────────────────────────────────────
     private void loadBooks() {
         List<Book> books = bookService.getAllBooks();
         bookList.setAll(books);
-        updateStatus(books.size());
+        statusLabel.setText("Total: " + books.size() + " book(s)");
     }
 
-    private void updateStatus(int count) {
-        statusLabel.setText("Total: " + count + " book(s)");
-    }
-
-    // ── Search ────────────────────────────────────────────────────────
     @FXML
     private void handleSearch() {
         String keyword = searchField.getText().trim();
         List<Book> results = bookService.searchBooks(keyword);
         bookList.setAll(results);
-        updateStatus(results.size());
+        statusLabel.setText("Showing: " + results.size() + " book(s)");
     }
 
     @FXML
@@ -146,7 +160,7 @@ public class BookController implements Initializable {
         } else {
             List<Book> results = bookService.searchBooks(selected);
             bookList.setAll(results);
-            updateStatus(results.size());
+            statusLabel.setText("Showing: " + results.size() + " book(s)");
         }
     }
 
@@ -157,199 +171,382 @@ public class BookController implements Initializable {
         loadBooks();
     }
 
-    // ── Add Book ──────────────────────────────────────────────────────
     @FXML
-    private void handleAddBook() {
-        openBookForm(null);
-    }
+    private void handleAddBook() { openBookForm(null); }
 
-    // ── Delete Book ───────────────────────────────────────────────────
-    private void handleDeleteBook(Book book) {
+    // ── Delete ────────────────────────────────────────────────────────
+    private void handleDelete(Book book) {
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Delete Book");
         confirm.setHeaderText("Delete \"" + book.getTitle() + "\"?");
         confirm.setContentText(
-            "This action cannot be undone.\n" +
-            "Note: Books currently issued cannot be deleted."
+            "Accession: " + book.getAccessionNumber() + "\n" +
+            "This cannot be undone.\n" +
+            "Books currently issued cannot be deleted."
         );
+        confirm.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
 
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            boolean deleted = bookService.deleteBook(book.getId());
-            if (deleted) {
-                showAlert(Alert.AlertType.INFORMATION,
-                    "Deleted", "Book deleted successfully.");
+            if (bookService.deleteBook(book.getId())) {
+                AlertHelper.showSuccess("Deleted",
+                    "\"" + book.getTitle() + "\" removed.");
                 loadBooks();
             } else {
-                showAlert(Alert.AlertType.ERROR,
-                    "Cannot Delete",
-                    "This book is currently issued to a member.\n" +
-                    "Please return the book first.");
+                AlertHelper.showError("Cannot Delete",
+                    "This book is currently issued.\n" +
+                    "Return the book first.");
             }
         }
     }
 
-    // ── Book Form (Add / Edit) ────────────────────────────────────────
-   private void openBookForm(Book existingBook) {
-    boolean isEdit = existingBook != null;
-
-    // ── Form Fields ───────────────────────────────────────────────────
-    TextField        titleField     = new TextField();
-    TextField        authorField    = new TextField();
-    TextField        isbnField      = new TextField();
-    ComboBox<String> catBox         = new ComboBox<>();
-    Spinner<Integer> copiesSpinner  = new Spinner<>(1, 999, 1);
-    Label            errorLabel     = new Label();
-
-    // Field sizing
-    titleField.setPrefWidth(280);
-    titleField.setPrefHeight(36);
-    titleField.setPromptText("e.g. Introduction to Algorithms");
-
-    authorField.setPrefWidth(280);
-    authorField.setPrefHeight(36);
-    authorField.setPromptText("e.g. Thomas H. Cormen");
-
-    isbnField.setPrefWidth(280);
-    isbnField.setPrefHeight(36);
-    isbnField.setPromptText("e.g. 978-0262033848");
-
-    catBox.setPrefWidth(280);
-    catBox.setPrefHeight(36);
-    catBox.setPromptText("Select category");
-    catBox.setItems(FXCollections.observableArrayList(
-        "Fiction", "Non-Fiction", "Science", "Technology",
-        "History", "Mathematics", "Literature", "Reference", "Other"
-    ));
-
-    copiesSpinner.setEditable(true);
-    copiesSpinner.setPrefWidth(280);
-    copiesSpinner.setPrefHeight(36);
-
-    errorLabel.setStyle("-fx-text-fill: #ef233c; -fx-font-size: 12px;");
-
-    // Pre-fill if editing
-    if (isEdit) {
-        titleField.setText(existingBook.getTitle());
-        authorField.setText(existingBook.getAuthor());
-        isbnField.setText(existingBook.getIsbn());
-        catBox.setValue(existingBook.getCategory());
-        copiesSpinner.getValueFactory().setValue(existingBook.getTotalCopies());
-    }
-
-    // ── Layout ────────────────────────────────────────────────────────
-    String labelStyle =
-        "-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #333333;";
-    String fieldContainerStyle =
-        "-fx-spacing: 6;";
-
-    VBox form = new VBox(14);
-    form.setPadding(new Insets(24, 28, 10, 28));
-    form.setPrefWidth(460);
-
-    form.getChildren().addAll(
-        fieldBox("Title *",    labelStyle, fieldContainerStyle, titleField),
-        fieldBox("Author *",   labelStyle, fieldContainerStyle, authorField),
-        fieldBox("ISBN",       labelStyle, fieldContainerStyle, isbnField),
-        fieldBox("Category",   labelStyle, fieldContainerStyle, catBox),
-        fieldBox("No. of Copies *", labelStyle, fieldContainerStyle, copiesSpinner),
-        errorLabel
-    );
-
-    // ── Buttons ───────────────────────────────────────────────────────
-    Button saveBtn   = new Button(isEdit ? "💾  Update Book" : "➕  Add Book");
-    Button cancelBtn = new Button("Cancel");
-
-    saveBtn.setPrefWidth(160);
-    saveBtn.setPrefHeight(40);
-    saveBtn.setStyle(
-        "-fx-background-color: #4361ee; -fx-text-fill: white;" +
-        "-fx-font-weight: bold; -fx-font-size: 14px;" +
-        "-fx-background-radius: 6; -fx-cursor: hand;");
-
-    cancelBtn.setPrefWidth(100);
-    cancelBtn.setPrefHeight(40);
-    cancelBtn.setStyle(
-        "-fx-background-color: #e9ecef; -fx-font-size: 13px;" +
-        "-fx-background-radius: 6; -fx-cursor: hand;");
-
-    HBox btnBox = new HBox(12, saveBtn, cancelBtn);
-    btnBox.setPadding(new Insets(10, 28, 24, 28));
-    btnBox.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
-
-    VBox root = new VBox(0, form, btnBox);
-    root.setStyle("-fx-background-color: white;");
-
-    // ── Dialog Stage ──────────────────────────────────────────────────
-    Stage dialog = new Stage();
-    dialog.setTitle(isEdit ? "Edit Book" : "Add New Book");
-    dialog.initModality(Modality.APPLICATION_MODAL);
-    dialog.setScene(new Scene(root));
-    dialog.setMinWidth(460);
-    dialog.setResizable(false);
-
-    cancelBtn.setOnAction(e -> dialog.close());
-
-    saveBtn.setOnAction(e -> {
-        String title  = titleField.getText().trim();
-        String author = authorField.getText().trim();
-        String isbn   = isbnField.getText().trim();
-        String cat    = catBox.getValue();
-        int    copies = copiesSpinner.getValue();
-
-        if (title.isEmpty()) {
-            errorLabel.setText("⚠ Title is required.");
-            return;
-        }
-        if (author.isEmpty()) {
-            errorLabel.setText("⚠ Author is required.");
-            return;
-        }
-        if (!isbn.isEmpty() && bookService.isbnExists(isbn,
-                isEdit ? existingBook.getId() : 0)) {
-            errorLabel.setText("⚠ This ISBN already exists.");
-            return;
-        }
-
-        Book book = new Book(
-            isEdit ? existingBook.getId() : 0,
-            title, author, isbn,
-            cat != null ? cat : "Other",
-            copies, copies
+    // ── QR Code Viewer ────────────────────────────────────────────────
+    private void showQRCode(Book book) {
+        String content = QRCodeUtil.buildQRContent(
+            book.getAccessionNumber(),
+            book.getTitle(),
+            book.getAuthor(),
+            book.getClassificationNumber(),
+            book.getId()
         );
 
-        boolean success = isEdit
-            ? bookService.updateBook(book)
-            : bookService.addBook(book);
-
-        if (success) {
-            dialog.close();
-            loadBooks();
-            showAlert(Alert.AlertType.INFORMATION, "Success",
-                isEdit ? "Book updated successfully!"
-                       : "Book added successfully!");
-        } else {
-            errorLabel.setText("⚠ Failed to save. Please try again.");
+        Image qrImage = QRCodeUtil.generateQRImage(content);
+        if (qrImage == null) {
+            AlertHelper.showError("QR Error",
+                "Failed to generate QR code.");
+            return;
         }
-    });
 
-    dialog.showAndWait();
-}
+        ImageView imageView = new ImageView(qrImage);
+        imageView.setFitWidth(250);
+        imageView.setFitHeight(250);
+        imageView.setSmooth(true);
 
-// ── Helper: builds a label + field pair ──────────────────────────────
-private VBox fieldBox(String labelText, String labelStyle,
-                      String boxStyle, javafx.scene.Node field) {
-    Label label = new Label(labelText);
-    label.setStyle(labelStyle);
-    VBox box = new VBox(6, label, field);
-    return box;
-}
+        // Book info
+        Label titleLbl = new Label(book.getTitle());
+        titleLbl.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;" +
+                          "-fx-text-fill: #1a1a2e;");
+        titleLbl.setWrapText(true);
+        titleLbl.setMaxWidth(280);
 
-private void showAlert(Alert.AlertType type, String title, String msg) {
-    if (type == Alert.AlertType.INFORMATION) {
-        AlertHelper.showSuccess(title, msg);
-    } else {
-        AlertHelper.showError(title, msg);
+        Label infoLbl = new Label(
+            "Accession: " + book.getAccessionNumber() + "\n" +
+            "Class No:  " + book.getClassificationNumber() + "\n" +
+            "Cutter:    " + book.getCutterNumber()
+        );
+        infoLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #555555;");
+
+        // Buttons
+        Button saveBtn = new Button("💾  Save QR as PNG");
+        saveBtn.setStyle(
+            "-fx-background-color: #4361ee; -fx-text-fill: white;" +
+            "-fx-font-weight: bold; -fx-padding: 8 20;" +
+            "-fx-background-radius: 8; -fx-cursor: hand;");
+
+        Button closeBtn = new Button("Close");
+        closeBtn.setStyle(
+            "-fx-background-color: #eef1fb; -fx-padding: 8 20;" +
+            "-fx-background-radius: 8; -fx-cursor: hand;");
+
+        HBox btnBox = new HBox(10, saveBtn, closeBtn);
+        btnBox.setAlignment(Pos.CENTER);
+
+        VBox root = new VBox(14, imageView, titleLbl, infoLbl, btnBox);
+        root.setAlignment(Pos.CENTER);
+        root.setPadding(new Insets(24));
+        root.setStyle("-fx-background-color: white;");
+        root.setPrefWidth(320);
+
+        Stage dialog = new Stage();
+        dialog.setTitle("QR Code — " + book.getTitle());
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
+        dialog.setScene(new Scene(root));
+        dialog.setResizable(false);
+
+        saveBtn.setOnAction(e -> {
+            String path = QRCodeUtil.saveQRCode(
+                content, book.getAccessionNumber()
+            );
+            if (path != null) {
+                AlertHelper.showSuccess("QR Saved!",
+                    "Saved to:\n" + path);
+            } else {
+                AlertHelper.showError("Save Failed",
+                    "Could not save QR code.");
+            }
+        });
+
+        closeBtn.setOnAction(e -> dialog.close());
+        dialog.showAndWait();
     }
-}
+
+    // ── Book Form (Add / Edit) ────────────────────────────────────────
+    private void openBookForm(Book existing) {
+        boolean isEdit = existing != null;
+
+        // ── Fields ───────────────────────────────────────────────────
+        TextField accessionField      = field("e.g. TBC-2024-001");
+        TextField titleField          = field("e.g. Introduction to Algorithms");
+        TextField authorField         = field("e.g. Thomas H. Cormen");
+        TextField isbnField           = field("e.g. 978-0262033848");
+        TextField classificationField = field("e.g. 005.1 COR");
+        TextField cutterField         = field("e.g. C813i");
+        TextField editionField        = field("e.g. 3rd Edition");
+        TextField publisherField      = field("e.g. MIT Press");
+        TextField placeField          = field("e.g. Cambridge, MA");
+        TextField yearField           = field("e.g. " + LocalDate.now().getYear());
+        TextField pagesField          = field("e.g. 1292");
+        ComboBox<String> catBox       = new ComboBox<>();
+        Spinner<Integer> copiesSpinner = new Spinner<>(1, 999, 1);
+        Label errorLabel              = new Label();
+
+        catBox.setItems(FXCollections.observableArrayList(
+            "Fiction", "Non-Fiction", "Science", "Technology",
+            "History", "Mathematics", "Literature", "Reference", "Other"
+        ));
+        catBox.setPromptText("Select category");
+        catBox.setPrefWidth(Double.MAX_VALUE);
+        catBox.setPrefHeight(36);
+
+        copiesSpinner.setEditable(true);
+        copiesSpinner.setPrefWidth(Double.MAX_VALUE);
+        copiesSpinner.setPrefHeight(36);
+
+        errorLabel.setStyle(
+            "-fx-text-fill: #e63946; -fx-font-size: 12px;");
+        errorLabel.setWrapText(true);
+
+        // Pre-fill if editing
+        if (isEdit) {
+            accessionField.setText(existing.getAccessionNumber());
+            titleField.setText(existing.getTitle());
+            authorField.setText(existing.getAuthor());
+            isbnField.setText(existing.getIsbn());
+            classificationField.setText(existing.getClassificationNumber());
+            cutterField.setText(existing.getCutterNumber());
+            editionField.setText(existing.getEdition());
+            publisherField.setText(existing.getPublisher());
+            placeField.setText(existing.getPlaceOfPublication());
+            if (existing.getYearOfPublication() > 0)
+                yearField.setText(String.valueOf(existing.getYearOfPublication()));
+            if (existing.getNumberOfPages() > 0)
+                pagesField.setText(String.valueOf(existing.getNumberOfPages()));
+            catBox.setValue(existing.getCategory());
+            copiesSpinner.getValueFactory().setValue(existing.getTotalCopies());
+        }
+
+        String lblStyle =
+            "-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #333;";
+
+        // ── Two-column layout ─────────────────────────────────────────
+        // Left column
+        VBox leftCol = new VBox(10,
+            lbl("Accession No. *", lblStyle),  accessionField,
+            lbl("Title *",         lblStyle),  titleField,
+            lbl("Author *",        lblStyle),  authorField,
+            lbl("ISBN",            lblStyle),  isbnField,
+            lbl("Category",        lblStyle),  catBox,
+            lbl("No. of Copies *", lblStyle),  copiesSpinner
+        );
+        leftCol.setPrefWidth(260);
+
+        // Right column
+        VBox rightCol = new VBox(10,
+            lbl("Classification No.", lblStyle), classificationField,
+            lbl("Cutter Number",      lblStyle), cutterField,
+            lbl("Edition",            lblStyle), editionField,
+            lbl("Publisher",          lblStyle), publisherField,
+            lbl("Place of Publication", lblStyle), placeField,
+            lbl("Year of Publication", lblStyle), yearField,
+            lbl("Number of Pages",    lblStyle), pagesField
+        );
+        rightCol.setPrefWidth(260);
+
+        HBox columns = new HBox(20, leftCol, rightCol);
+        columns.setPadding(new Insets(20, 24, 10, 24));
+
+        // Section headers
+        Label leftHeader = sectionHeader("📚 Basic Information");
+        Label rightHeader = sectionHeader("🔖 Classification & Publication");
+
+        HBox headers = new HBox(20,
+            withWidth(leftHeader, 260),
+            withWidth(rightHeader, 260)
+        );
+        headers.setPadding(new Insets(20, 24, 0, 24));
+
+        // ── Buttons ───────────────────────────────────────────────────
+        Button saveBtn   = new Button(isEdit ? "💾  Update Book"
+                                             : "➕  Add Book");
+        Button cancelBtn = new Button("Cancel");
+
+        saveBtn.setPrefHeight(42); saveBtn.setPrefWidth(160);
+        saveBtn.setStyle(
+            "-fx-background-color: #4361ee; -fx-text-fill: white;" +
+            "-fx-font-weight: bold; -fx-font-size: 14px;" +
+            "-fx-background-radius: 8; -fx-cursor: hand;");
+
+        cancelBtn.setPrefHeight(42); cancelBtn.setPrefWidth(100);
+        cancelBtn.setStyle(
+            "-fx-background-color: #eef1fb; -fx-font-size: 13px;" +
+            "-fx-background-radius: 8; -fx-cursor: hand;");
+
+        HBox btnBox = new HBox(12, saveBtn, cancelBtn);
+        btnBox.setPadding(new Insets(10, 24, 20, 24));
+        btnBox.setAlignment(Pos.CENTER_LEFT);
+
+        VBox root = new VBox(0, headers, columns,
+            withPadding(errorLabel, new Insets(0, 24, 0, 24)), btnBox);
+        root.setStyle("-fx-background-color: white;");
+
+        // ── Dialog ────────────────────────────────────────────────────
+        Stage dialog = new Stage();
+        dialog.setTitle(isEdit ? "Edit Book" : "Add New Book");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
+        dialog.setScene(new Scene(root));
+        dialog.setMinWidth(580);
+        dialog.setResizable(false);
+
+        cancelBtn.setOnAction(e -> dialog.close());
+
+        saveBtn.setOnAction(e -> {
+            errorLabel.setText("");
+
+            // ── Collect values ────────────────────────────────────────
+            String accession = accessionField.getText().trim();
+            String title     = titleField.getText().trim();
+            String author    = authorField.getText().trim();
+            String isbn      = isbnField.getText().trim();
+            String classNo   = classificationField.getText().trim();
+            String cutter    = cutterField.getText().trim();
+            String edition   = editionField.getText().trim();
+            String publisher = publisherField.getText().trim();
+            String place     = placeField.getText().trim();
+            String yearStr   = yearField.getText().trim();
+            String pagesStr  = pagesField.getText().trim();
+            String category  = catBox.getValue();
+            int    copies    = copiesSpinner.getValue();
+
+            // ── Validation ────────────────────────────────────────────
+            if (accession.isEmpty()) {
+                errorLabel.setText("⚠ Accession Number is required.");
+                return;
+            }
+            if (title.isEmpty()) {
+                errorLabel.setText("⚠ Title is required.");
+                return;
+            }
+            if (author.isEmpty()) {
+                errorLabel.setText("⚠ Author is required.");
+                return;
+            }
+            if (bookService.accessionExists(accession,
+                    isEdit ? existing.getId() : 0)) {
+                errorLabel.setText(
+                    "⚠ Accession Number already exists. Must be unique.");
+                return;
+            }
+            if (!isbn.isEmpty() && bookService.isbnExists(isbn,
+                    isEdit ? existing.getId() : 0)) {
+                errorLabel.setText("⚠ This ISBN already exists.");
+                return;
+            }
+
+            // Year validation
+            int year = 0;
+            if (!yearStr.isEmpty()) {
+                try {
+                    year = Integer.parseInt(yearStr);
+                    int currentYear = LocalDate.now().getYear();
+                    if (year < 1000 || year > currentYear + 1) {
+                        errorLabel.setText(
+                            "⚠ Enter a valid year (1000–" +
+                            (currentYear + 1) + ").");
+                        return;
+                    }
+                } catch (NumberFormatException ex) {
+                    errorLabel.setText("⚠ Year must be a number.");
+                    return;
+                }
+            }
+
+            // Pages validation
+            int pages = 0;
+            if (!pagesStr.isEmpty()) {
+                try {
+                    pages = Integer.parseInt(pagesStr);
+                    if (pages <= 0) {
+                        errorLabel.setText("⚠ Pages must be greater than 0.");
+                        return;
+                    }
+                } catch (NumberFormatException ex) {
+                    errorLabel.setText("⚠ Pages must be a number.");
+                    return;
+                }
+            }
+
+            Book book = new Book(
+                isEdit ? existing.getId() : 0,
+                title, author, isbn,
+                category != null ? category : "Other",
+                copies, copies,
+                accession, classNo, cutter, edition,
+                publisher, place, year, pages
+            );
+
+            boolean success = isEdit
+                ? bookService.updateBook(book)
+                : bookService.addBook(book);
+
+            if (success) {
+                dialog.close();
+                loadBooks();
+                AlertHelper.showSuccess("Success",
+                    isEdit ? "Book updated successfully!"
+                           : "\"" + title + "\" added!");
+            } else {
+                errorLabel.setText("⚠ Failed to save. Try again.");
+            }
+        });
+
+        dialog.showAndWait();
+    }
+
+    // ── UI Helpers ────────────────────────────────────────────────────
+    private TextField field(String prompt) {
+        TextField tf = new TextField();
+        tf.setPromptText(prompt);
+        tf.setPrefHeight(36);
+        tf.setPrefWidth(Double.MAX_VALUE);
+        return tf;
+    }
+
+    private Label lbl(String text, String style) {
+        Label l = new Label(text);
+        l.setStyle(style);
+        return l;
+    }
+
+    private Label sectionHeader(String text) {
+        Label l = new Label(text);
+        l.setStyle(
+            "-fx-font-size: 13px; -fx-font-weight: bold;" +
+            "-fx-text-fill: #4361ee; -fx-padding: 0 0 4 0;");
+        return l;
+    }
+
+    private Region withWidth(javafx.scene.Node node, double width) {
+        if (node instanceof Region r) r.setPrefWidth(width);
+        return (Region) node;
+    }
+
+    private Label withPadding(Label label, Insets insets) {
+        label.setPadding(insets);
+        return label;
+    }
 }

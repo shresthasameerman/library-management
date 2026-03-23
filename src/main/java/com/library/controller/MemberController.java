@@ -16,6 +16,7 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.net.URL;
 import java.util.List;
@@ -30,14 +31,18 @@ public class MemberController implements Initializable {
     @FXML private TableColumn<Member,String>  colName;
     @FXML private TableColumn<Member,String>  colType;
     @FXML private TableColumn<Member,String>  colDepartment;
+    @FXML private TableColumn<Member,String>  colIntake;
     @FXML private TableColumn<Member,String>  colPhone;
-    @FXML private TableColumn<Member,String>  colEmail;
     @FXML private TableColumn<Member,String>  colStatus;
     @FXML private TableColumn<Member,Void>    colActions;
-    @FXML private TextField                   searchField;
-    @FXML private ComboBox<String>            departmentFilter;
-    @FXML private CheckBox                    showInactiveCheck;
-    @FXML private Label                       statusLabel;
+
+    @FXML private TextField      searchField;
+    @FXML private ComboBox<String> courseFilter;
+    @FXML private ComboBox<String> intakeFilter;
+    @FXML private ComboBox<String> typeFilter;
+    @FXML private CheckBox        showInactiveCheck;
+    @FXML private Label           statusLabel;
+    @FXML private Label           filterInfoLabel;
 
     private final MemberService          memberService = new MemberService();
     private final ObservableList<Member> memberList    =
@@ -46,92 +51,92 @@ public class MemberController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         setupTableColumns();
-        setupDepartmentFilter();
+        setupFilters();
         loadMembers();
     }
 
-    // ── Table Setup ───────────────────────────────────────────────────
+    // ── Table Columns ─────────────────────────────────────────────────
     private void setupTableColumns() {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colMemberId.setCellValueFactory(new PropertyValueFactory<>("memberId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
         colDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
-        colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
 
-        // ── Type column — badge style ─────────────────────────────────
+        // Intake column
+        colIntake.setCellValueFactory(new PropertyValueFactory<>("intake"));
+        colIntake.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null || value.isBlank()) {
+                    setText("—");
+                    setStyle("-fx-text-fill: #c0c8e0;");
+                } else {
+                    setText(value);
+                    setStyle("-fx-text-fill: #4a5568;");
+                }
+            }
+        });
+
+        // Type badge
         colType.setCellValueFactory(new PropertyValueFactory<>("memberType"));
         colType.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
                 if (empty || value == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    Label badge = new Label(
-                        "Staff".equals(value) ? "👨‍💼 Staff" : "🎓 Student"
-                    );
-                    badge.setStyle(
-                        "Staff".equals(value)
-                        ? "-fx-background-color: #fff4e6;" +
-                          "-fx-text-fill: #f77f00;" +
-                          "-fx-font-weight: bold; -fx-font-size: 11px;" +
-                          "-fx-background-radius: 4; -fx-padding: 3 8 3 8;"
-                        : "-fx-background-color: #eef1fb;" +
-                          "-fx-text-fill: #4361ee;" +
-                          "-fx-font-weight: bold; -fx-font-size: 11px;" +
-                          "-fx-background-radius: 4; -fx-padding: 3 8 3 8;"
-                    );
-                    setGraphic(badge);
-                    setText(null);
+                    setText(null); setGraphic(null); return;
                 }
+                Label badge = new Label(
+                    "Staff".equals(value) ? "👨‍💼 Staff" : "🎓 Student"
+                );
+                badge.setStyle("Staff".equals(value)
+                    ? "-fx-background-color: #fff4e6; -fx-text-fill: #f77f00;" +
+                      "-fx-font-weight: bold; -fx-font-size: 11px;" +
+                      "-fx-background-radius: 4; -fx-padding: 3 8 3 8;"
+                    : "-fx-background-color: #eef1fb; -fx-text-fill: #4361ee;" +
+                      "-fx-font-weight: bold; -fx-font-size: 11px;" +
+                      "-fx-background-radius: 4; -fx-padding: 3 8 3 8;"
+                );
+                setGraphic(badge); setText(null);
             }
         });
 
-        // ── Status column ─────────────────────────────────────────────
+        // Status
         colStatus.setCellValueFactory(new PropertyValueFactory<>("status"));
         colStatus.setCellFactory(col -> new TableCell<>() {
             @Override
             protected void updateItem(String value, boolean empty) {
                 super.updateItem(value, empty);
-                if (empty || value == null) {
-                    setText(null);
-                } else {
-                    setText(value);
-                    setStyle("Active".equals(value)
-                        ? "-fx-text-fill: #2dc653; -fx-font-weight: bold;"
-                        : "-fx-text-fill: #e63946; -fx-font-weight: bold;");
-                }
+                if (empty || value == null) { setText(null); return; }
+                setText(value);
+                setStyle("Active".equals(value)
+                    ? "-fx-text-fill: #2dc653; -fx-font-weight: bold;"
+                    : "-fx-text-fill: #e63946; -fx-font-weight: bold;");
             }
         });
 
-        // ── Actions column ────────────────────────────────────────────
+        // Actions
         colActions.setCellFactory(col -> new TableCell<>() {
             private final Button editBtn       = new Button("✏️");
             private final Button deactivateBtn = new Button("🚫");
             private final Button deleteBtn     = new Button("🗑️");
-            private final HBox   box           = new HBox(5,
-                                                   editBtn,
-                                                   deactivateBtn,
-                                                   deleteBtn);
+            private final HBox   box = new HBox(5, editBtn, deactivateBtn, deleteBtn);
+
             {
                 editBtn.setStyle(
                     "-fx-background-color: #4361ee; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
                     "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
-                editBtn.setTooltip(new Tooltip("Edit member"));
-
                 deactivateBtn.setStyle(
                     "-fx-background-color: #f77f00; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
                     "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
-
                 deleteBtn.setStyle(
                     "-fx-background-color: #e63946; -fx-text-fill: white;" +
                     "-fx-font-size: 11px; -fx-background-radius: 4;" +
                     "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
-                deleteBtn.setTooltip(new Tooltip("Permanently remove"));
 
                 editBtn.setOnAction(e -> {
                     Member m = getTableView().getItems().get(getIndex());
@@ -150,86 +155,106 @@ public class MemberController implements Initializable {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
+                if (empty) { setGraphic(null); return; }
+                Member m = getTableView().getItems().get(getIndex());
+                if (m.isActive()) {
+                    deactivateBtn.setText("🚫");
+                    deactivateBtn.setStyle(
+                        "-fx-background-color: #f77f00; -fx-text-fill: white;" +
+                        "-fx-font-size: 11px; -fx-background-radius: 4;" +
+                        "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
+                    deactivateBtn.setTooltip(new Tooltip("Deactivate"));
                 } else {
-                    Member m = getTableView().getItems().get(getIndex());
-                    if (m.isActive()) {
-                        deactivateBtn.setText("🚫");
-                        deactivateBtn.setTooltip(new Tooltip("Deactivate"));
-                        deactivateBtn.setStyle(
-                            "-fx-background-color: #f77f00; -fx-text-fill: white;" +
-                            "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                            "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
-                    } else {
-                        deactivateBtn.setText("✅");
-                        deactivateBtn.setTooltip(new Tooltip("Reactivate"));
-                        deactivateBtn.setStyle(
-                            "-fx-background-color: #2dc653; -fx-text-fill: white;" +
-                            "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                            "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
-                    }
-                    setGraphic(box);
+                    deactivateBtn.setText("✅");
+                    deactivateBtn.setStyle(
+                        "-fx-background-color: #2dc653; -fx-text-fill: white;" +
+                        "-fx-font-size: 11px; -fx-background-radius: 4;" +
+                        "-fx-cursor: hand; -fx-padding: 5 8 5 8;");
+                    deactivateBtn.setTooltip(new Tooltip("Reactivate"));
                 }
+                setGraphic(box);
             }
         });
 
         membersTable.setItems(memberList);
     }
 
-    private void setupDepartmentFilter() {
-        departmentFilter.setItems(FXCollections.observableArrayList(
-            "All Departments", "Computer Science", "Business",
-            "Engineering", "Medicine", "Law", "Arts",
-            "Science", "Management", "Other"
+    // ── Setup Filters ─────────────────────────────────────────────────
+    private void setupFilters() {
+        // Course filter
+        var courses = FXCollections.observableArrayList("All Courses");
+        courses.addAll(MemberService.COURSES);
+        courseFilter.setItems(courses);
+        courseFilter.setValue("All Courses");
+
+        // Intake filter
+        var intakes = FXCollections.observableArrayList("All Intakes");
+        intakes.addAll(MemberService.INTAKES);
+        intakeFilter.setItems(intakes);
+        intakeFilter.setValue("All Intakes");
+
+        // Type filter
+        typeFilter.setItems(FXCollections.observableArrayList(
+            "All Types", "Student", "Staff"
         ));
-        departmentFilter.setValue("All Departments");
+        typeFilter.setValue("All Types");
     }
 
     // ── Load Members ──────────────────────────────────────────────────
     private void loadMembers() {
-        boolean showInactive = showInactiveCheck != null
-                               && showInactiveCheck.isSelected();
-        List<Member> members = memberService.searchMembers("", !showInactive);
-        memberList.setAll(members);
-        updateStatus(members.size());
+        applyFilters();
     }
 
-    private void updateStatus(int count) {
-        statusLabel.setText("Total: " + count + " member(s)");
-    }
-
-    // ── Search & Filters ──────────────────────────────────────────────
-    @FXML
-    private void handleSearch() {
-        String keyword = searchField.getText().trim();
+    private void applyFilters() {
+        String keyword    = searchField.getText().trim();
+        String course     = courseFilter.getValue();
+        String intake     = intakeFilter.getValue();
+        String type       = typeFilter.getValue();
         boolean activeOnly = !showInactiveCheck.isSelected();
-        List<Member> results = memberService.searchMembers(keyword, activeOnly);
-        memberList.setAll(results);
-        updateStatus(results.size());
-    }
 
-    @FXML
-    private void handleDepartmentFilter() {
-        String selected = departmentFilter.getValue();
-        boolean activeOnly = !showInactiveCheck.isSelected();
-        if (selected == null || selected.equals("All Departments")) {
-            loadMembers();
-        } else {
-            List<Member> results = memberService.searchMembers(selected, activeOnly);
-            memberList.setAll(results);
-            updateStatus(results.size());
+        // Normalize "All" values
+        String courseFilter2 = (course == null || course.equals("All Courses"))
+                               ? "All" : course;
+        String intakeFilter2 = (intake == null || intake.equals("All Intakes"))
+                               ? "All" : intake;
+
+        List<Member> results = memberService.searchMembersFiltered(
+            keyword, courseFilter2, intakeFilter2, activeOnly
+        );
+
+        // Apply type filter in memory
+        if (type != null && !type.equals("All Types")) {
+            results = results.stream()
+                .filter(m -> type.equals(m.getMemberType()))
+                .toList();
         }
+
+        memberList.setAll(results);
+        updateStatus(results.size(), courseFilter2, intakeFilter2, type);
     }
 
-    @FXML private void handleShowInactive() { loadMembers(); }
+    private void updateStatus(int count, String course,
+                               String intake, String type) {
+        statusLabel.setText("Showing: " + count + " member(s)");
+
+        StringBuilder info = new StringBuilder();
+        if (!"All".equals(course))       info.append("📚 ").append(course).append("  ");
+        if (!"All".equals(intake))       info.append("📅 ").append(intake).append("  ");
+        if (!"All Types".equals(type))   info.append("👤 ").append(type);
+        filterInfoLabel.setText(info.toString().trim());
+    }
+
+    @FXML private void handleSearch()       { applyFilters(); }
+    @FXML private void handleFilterChange() { applyFilters(); }
 
     @FXML
     private void handleClearSearch() {
         searchField.clear();
-        departmentFilter.setValue("All Departments");
+        courseFilter.setValue("All Courses");
+        intakeFilter.setValue("All Intakes");
+        typeFilter.setValue("All Types");
         showInactiveCheck.setSelected(false);
-        loadMembers();
+        applyFilters();
     }
 
     @FXML
@@ -247,24 +272,22 @@ public class MemberController implements Initializable {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Deactivate Member");
             confirm.setHeaderText("Deactivate " + member.getName() + "?");
-            confirm.setContentText(
-                "They will lose library access.\n" +
-                "You can reactivate them anytime."
-            );
+            confirm.setContentText("They will lose library access.\n" +
+                                   "You can reactivate them anytime.");
             Optional<ButtonType> result = confirm.showAndWait();
             if (result.isPresent() && result.get() == ButtonType.OK) {
                 memberService.deactivateMember(member.getId());
-                loadMembers();
+                applyFilters();
             }
         } else {
             memberService.reactivateMember(member.getId());
             AlertHelper.showSuccess("Reactivated",
                 member.getName() + " is now active again.");
-            loadMembers();
+            applyFilters();
         }
     }
 
-    // ── Permanently Delete ────────────────────────────────────────────
+    // ── Delete ────────────────────────────────────────────────────────
     private void handleDelete(Member member) {
         if (memberService.hasActiveIssues(member.getId())) {
             AlertHelper.showError("Cannot Delete",
@@ -272,40 +295,38 @@ public class MemberController implements Initializable {
                 "Please return all books before deleting.");
             return;
         }
-
         ButtonType removeBtn = new ButtonType("Remove",
                                    ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelBtn = new ButtonType("Cancel",
                                    ButtonBar.ButtonData.CANCEL_CLOSE);
-
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Remove Member");
         confirm.setHeaderText("Permanently remove " + member.getName() + "?");
         confirm.setContentText(
-            "Type: " + member.getMemberType() +
-            " | ID: " + member.getMemberId() + "\n\n" +
+            "Course: " + member.getDepartment() +
+            " | Intake: " + member.getIntake() + "\n\n" +
             "⚠ This CANNOT be undone.\n" +
             "Members with borrowing history cannot be deleted.\n" +
             "Use 🚫 Deactivate for graduated students with history."
         );
         confirm.getButtonTypes().setAll(removeBtn, cancelBtn);
-
-        Optional<ButtonType> result = confirm.showAndWait();
-        if (result.isPresent() && result.get() == removeBtn) {
-            boolean deleted = memberService.deleteMember(member.getId());
-            if (deleted) {
-                loadMembers();
-                AlertHelper.showSuccess("Removed",
-                    member.getName() + " removed from the system.");
-            } else {
-                AlertHelper.showError("Cannot Delete",
-                    "This member has borrowing history.\n" +
-                    "Use 🚫 Deactivate instead.");
+        confirm.showAndWait().ifPresent(result -> {
+            if (result == removeBtn) {
+                boolean deleted = memberService.deleteMember(member.getId());
+                if (deleted) {
+                    applyFilters();
+                    AlertHelper.showSuccess("Removed",
+                        member.getName() + " removed from the system.");
+                } else {
+                    AlertHelper.showError("Cannot Delete",
+                        "This member has borrowing history.\n" +
+                        "Use 🚫 Deactivate instead.");
+                }
             }
-        }
+        });
     }
 
-    // ── Member Form (Add / Edit) ──────────────────────────────────────
+    // ── Member Form ───────────────────────────────────────────────────
     private void openMemberForm(Member existing) {
         boolean isEdit = existing != null;
 
@@ -313,71 +334,92 @@ public class MemberController implements Initializable {
         TextField        idField    = new TextField();
         TextField        phoneField = new TextField();
         TextField        emailField = new TextField();
-        ComboBox<String> deptBox    = new ComboBox<>();
         ComboBox<String> typeBox    = new ComboBox<>();
+        ComboBox<String> courseBox  = new ComboBox<>();
+        ComboBox<String> intakeBox  = new ComboBox<>();
         Label            errorLabel = new Label();
 
         nameField.setPromptText("e.g. Sameer Thapa");
         phoneField.setPromptText("e.g. 9800000000");
         emailField.setPromptText("e.g. sameer@college.edu");
 
-        typeBox.setItems(FXCollections.observableArrayList(
-            "Student", "Staff"
-        ));
+        // Type
+        typeBox.setItems(FXCollections.observableArrayList("Student", "Staff"));
         typeBox.setValue("Student");
         typeBox.setPrefWidth(Double.MAX_VALUE);
-        typeBox.setPrefHeight(36);
+        typeBox.setPrefHeight(38);
 
-        deptBox.setItems(FXCollections.observableArrayList(
-            "Computer Science", "Business", "Engineering",
-            "Medicine", "Law", "Arts", "Science", "Management", "Other"
+        // Course
+        courseBox.setItems(FXCollections.observableArrayList(
+            MemberService.COURSES
         ));
-        deptBox.setPromptText("Select department");
-        deptBox.setPrefWidth(Double.MAX_VALUE);
-        deptBox.setPrefHeight(36);
+        courseBox.setPromptText("Select course");
+        courseBox.setPrefWidth(Double.MAX_VALUE);
+        courseBox.setPrefHeight(38);
 
-        errorLabel.setStyle(
-            "-fx-text-fill: #e63946; -fx-font-size: 12px;"
-        );
+        // Intake — auto update based on type
+        intakeBox.setItems(FXCollections.observableArrayList(
+            MemberService.INTAKES
+        ));
+        intakeBox.setPromptText("Select intake");
+        intakeBox.setPrefWidth(Double.MAX_VALUE);
+        intakeBox.setPrefHeight(38);
 
-        // Set field sizes
+        // When type = Staff, set intake to N/A and disable
+        typeBox.valueProperty().addListener((obs, old, newVal) -> {
+            if ("Staff".equals(newVal)) {
+                courseBox.setValue("Staff");
+                intakeBox.setValue("N/A (Staff)");
+                intakeBox.setDisable(true);
+                courseBox.setDisable(true);
+            } else {
+                intakeBox.setDisable(false);
+                courseBox.setDisable(false);
+                if ("Staff".equals(courseBox.getValue()))
+                    courseBox.setValue(null);
+                if ("N/A (Staff)".equals(intakeBox.getValue()))
+                    intakeBox.setValue(null);
+            }
+        });
+
+        errorLabel.setStyle("-fx-text-fill: #e63946; -fx-font-size: 12px;");
+
         for (TextField tf : new TextField[]{
                 nameField, idField, phoneField, emailField}) {
-            tf.setPrefWidth(280);
-            tf.setPrefHeight(36);
+            tf.setPrefWidth(300);
+            tf.setPrefHeight(38);
         }
 
-        // Auto-generate ID for new members
         if (!isEdit) idField.setText(memberService.generateMemberId());
 
-        // Pre-fill if editing
         if (isEdit) {
             nameField.setText(existing.getName());
             idField.setText(existing.getMemberId());
             phoneField.setText(existing.getPhone());
             emailField.setText(existing.getEmail());
-            deptBox.setValue(existing.getDepartment());
             typeBox.setValue(existing.getMemberType());
+            courseBox.setValue(existing.getDepartment());
+            intakeBox.setValue(existing.getIntake());
         }
 
         String labelStyle =
-            "-fx-font-weight: bold; -fx-font-size: 13px;" +
-            "-fx-text-fill: #333333;";
+            "-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #333;";
 
-        VBox form = new VBox(14);
+        VBox form = new VBox(12);
         form.setPadding(new Insets(24, 28, 10, 28));
-        form.setPrefWidth(460);
+        form.setPrefWidth(480);
         form.getChildren().addAll(
             fieldBox("Member Type *", labelStyle, typeBox),
             fieldBox("Full Name *",   labelStyle, nameField),
             fieldBox("Member ID *",   labelStyle, idField),
+            fieldBox("Course *",      labelStyle, courseBox),
+            fieldBox("Intake Session *", labelStyle, intakeBox),
             fieldBox("Phone",         labelStyle, phoneField),
             fieldBox("Email",         labelStyle, emailField),
-            fieldBox("Department",    labelStyle, deptBox),
             errorLabel
         );
 
-        Button saveBtn   = new Button(isEdit ? "💾  Update"
+       Button saveBtn   = new Button(isEdit ? "💾  Update"
                                              : "➕  Register Member");
         Button cancelBtn = new Button("Cancel");
 
@@ -386,7 +428,6 @@ public class MemberController implements Initializable {
             "-fx-background-color: #4361ee; -fx-text-fill: white;" +
             "-fx-font-weight: bold; -fx-font-size: 14px;" +
             "-fx-background-radius: 8; -fx-cursor: hand;");
-
         cancelBtn.setPrefWidth(100); cancelBtn.setPrefHeight(40);
         cancelBtn.setStyle(
             "-fx-background-color: #eef1fb; -fx-font-size: 13px;" +
@@ -402,40 +443,45 @@ public class MemberController implements Initializable {
         Stage dialog = new Stage();
         dialog.setTitle(isEdit ? "Edit Member" : "Register New Member");
         dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
         dialog.setScene(new Scene(root));
-        dialog.setMinWidth(460);
+        dialog.setMinWidth(480);
         dialog.setResizable(false);
 
         cancelBtn.setOnAction(e -> dialog.close());
 
         saveBtn.setOnAction(e -> {
-            String name  = nameField.getText().trim();
-            String mId   = idField.getText().trim();
-            String phone = phoneField.getText().trim();
-            String email = emailField.getText().trim();
-            String dept  = deptBox.getValue();
-            String type  = typeBox.getValue();
+            String name   = nameField.getText().trim();
+            String mId    = idField.getText().trim();
+            String phone  = phoneField.getText().trim();
+            String email  = emailField.getText().trim();
+            String type   = typeBox.getValue();
+            String course = courseBox.getValue();
+            String intake = intakeBox.getValue();
 
             if (name.isEmpty()) {
-                errorLabel.setText("⚠ Full name is required.");
-                return;
+                errorLabel.setText("⚠ Full name is required."); return;
             }
             if (mId.isEmpty()) {
-                errorLabel.setText("⚠ Member ID is required.");
-                return;
+                errorLabel.setText("⚠ Member ID is required."); return;
+            }
+            if (course == null) {
+                errorLabel.setText("⚠ Please select a course."); return;
+            }
+            if (intake == null) {
+                errorLabel.setText("⚠ Please select an intake."); return;
             }
             if (memberService.memberIdExists(mId,
                     isEdit ? existing.getId() : 0)) {
-                errorLabel.setText("⚠ This Member ID already exists.");
-                return;
+                errorLabel.setText("⚠ This Member ID already exists."); return;
             }
 
             Member member = new Member(
                 isEdit ? existing.getId() : 0,
                 name, email, phone, mId,
-                dept != null ? dept : "Other",
-                type != null ? type : "Student",
-                true
+                course, type != null ? type : "Student",
+                intake, true
             );
 
             boolean success = isEdit
@@ -444,9 +490,9 @@ public class MemberController implements Initializable {
 
             if (success) {
                 dialog.close();
-                loadMembers();
+                applyFilters();
                 AlertHelper.showSuccess("Success",
-                    isEdit ? "Member updated successfully!"
+                    isEdit ? "Member updated!"
                            : member.getName() + " registered!");
             } else {
                 errorLabel.setText("⚠ Failed to save. Try again.");
@@ -456,6 +502,7 @@ public class MemberController implements Initializable {
         dialog.showAndWait();
     }
 
+    // ── Helper ────────────────────────────────────────────────────────
     private VBox fieldBox(String labelText, String labelStyle,
                           javafx.scene.Node field) {
         Label label = new Label(labelText);

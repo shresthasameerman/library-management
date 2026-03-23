@@ -9,12 +9,35 @@ import java.util.List;
 
 public class MemberService {
 
+    // ── TBC Courses ───────────────────────────────────────────────────
+    public static final String[] COURSES = {
+        "BBA",
+        "BSc (Hons) Computing",
+        "BSc Data Science",
+        "MBA (Graduate/Executive)",
+        "MSc IT",
+        "ACCA",
+        "Staff"
+    };
+
+    // ── Intake Sessions ───────────────────────────────────────────────
+    public static final String[] INTAKES = {
+        "Spring 2024",
+        "Fall 2024",
+        "Spring 2025",
+        "Fall 2025",
+        "Spring 2026",
+        "Fall 2026",
+        "N/A (Staff)"
+    };
+
     // ── Add New Member ────────────────────────────────────────────────
     public boolean addMember(Member member) {
         String sql = """
             INSERT INTO members
-                (name, email, phone, member_id, department, member_type, active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+                (name, email, phone, member_id,
+                 department, member_type, intake, active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
         """;
         try {
             Connection conn = DatabaseConnection.getConnection();
@@ -25,6 +48,7 @@ public class MemberService {
             stmt.setString(4, member.getMemberId());
             stmt.setString(5, member.getDepartment());
             stmt.setString(6, member.getMemberType());
+            stmt.setString(7, member.getIntake());
             stmt.executeUpdate();
             System.out.println("✓ Member added: " + member.getName());
             return true;
@@ -39,7 +63,8 @@ public class MemberService {
         String sql = """
             UPDATE members
             SET name = ?, email = ?, phone = ?,
-                member_id = ?, department = ?, member_type = ?
+                member_id = ?, department = ?,
+                member_type = ?, intake = ?
             WHERE id = ?
         """;
         try {
@@ -51,22 +76,24 @@ public class MemberService {
             stmt.setString(4, member.getMemberId());
             stmt.setString(5, member.getDepartment());
             stmt.setString(6, member.getMemberType());
-            stmt.setInt(7, member.getId());
+            stmt.setString(7, member.getIntake());
+            stmt.setInt(8, member.getId());
             stmt.executeUpdate();
             System.out.println("✓ Member updated: " + member.getName());
             return true;
         } catch (SQLException e) {
-            System.err.println("Update member failed: " + e.getMessage());
+            System.err.println("Update failed: " + e.getMessage());
             return false;
         }
     }
 
-    // ── Deactivate Member (soft delete) ───────────────────────────────
+    // ── Deactivate ────────────────────────────────────────────────────
     public boolean deactivateMember(int memberId) {
-        String sql = "UPDATE members SET active = 0 WHERE id = ?";
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "UPDATE members SET active = 0 WHERE id = ?"
+                );
             stmt.setInt(1, memberId);
             stmt.executeUpdate();
             return true;
@@ -76,12 +103,13 @@ public class MemberService {
         }
     }
 
-    // ── Reactivate Member ─────────────────────────────────────────────
+    // ── Reactivate ────────────────────────────────────────────────────
     public boolean reactivateMember(int memberId) {
-        String sql = "UPDATE members SET active = 1 WHERE id = ?";
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "UPDATE members SET active = 1 WHERE id = ?"
+                );
             stmt.setInt(1, memberId);
             stmt.executeUpdate();
             return true;
@@ -93,61 +121,93 @@ public class MemberService {
 
     // ── Permanently Delete Member ─────────────────────────────────────
     public boolean deleteMember(int memberId) {
-        String checkSql = """
-            SELECT COUNT(*) FROM issue_records WHERE member_id = ?
-        """;
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement check = conn.prepareStatement(checkSql);
+
+            // Block if member CURRENTLY has books issued
+            PreparedStatement check = conn.prepareStatement(
+                "SELECT COUNT(*) FROM issue_records " +
+                "WHERE member_id = ? AND status = 'ISSUED'"
+            );
             check.setInt(1, memberId);
             ResultSet rs = check.executeQuery();
-            if (rs.next() && rs.getInt(1) > 0) return false;
+            if (rs.next() && rs.getInt(1) > 0) {
+                System.err.println("Cannot delete — member has active issues.");
+                return false;
+            }
 
+            // Delete their RETURNED issue history first
+            // (removes FK constraint block)
+            PreparedStatement deleteHistory = conn.prepareStatement(
+                "DELETE FROM issue_records WHERE member_id = ?"
+            );
+            deleteHistory.setInt(1, memberId);
+            deleteHistory.executeUpdate();
+
+            // Now safely delete the member
             PreparedStatement stmt = conn.prepareStatement(
                 "DELETE FROM members WHERE id = ?"
             );
             stmt.setInt(1, memberId);
             stmt.executeUpdate();
+            System.out.println("✓ Member deleted: ID " + memberId);
             return true;
+
         } catch (SQLException e) {
             System.err.println("Delete failed: " + e.getMessage());
             return false;
         }
     }
 
-    // ── Get All Members ───────────────────────────────────────────────
-    public List<Member> getAllMembers() {
-        return searchMembers("", true);
-    }
-
     // ── Search Members ────────────────────────────────────────────────
     public List<Member> searchMembers(String keyword, boolean activeOnly) {
+        return searchMembersFiltered(keyword, "All", "All", activeOnly);
+    }
+
+    // ── Search with Course + Intake Filter ───────────────────────────
+    public List<Member> searchMembersFiltered(
+            String keyword, String course,
+            String intake, boolean activeOnly) {
+
         List<Member> members = new ArrayList<>();
-        String sql = """
-                SELECT id, name, email, phone, member_id,
-                       department, member_type, active
-                FROM members
-                WHERE (name       LIKE ?
-                   OR  email      LIKE ?
-                   OR  member_id  LIKE ?
-                   OR  department LIKE ?
-                   OR  member_type LIKE ?)
-            """
-            + (activeOnly ? " AND active = 1" : "")
-            + " ORDER BY name ASC";
+
+        StringBuilder sql = new StringBuilder("""
+            SELECT id, name, email, phone, member_id,
+                   department, member_type, intake, active
+            FROM members
+            WHERE (name        LIKE ?
+               OR  email       LIKE ?
+               OR  member_id   LIKE ?
+               OR  department  LIKE ?
+               OR  intake      LIKE ?
+               OR  member_type LIKE ?)
+        """);
+
+        if (activeOnly)            sql.append(" AND active = 1");
+        if (!"All".equals(course)) sql.append(" AND department = ?");
+        if (!"All".equals(intake)) sql.append(" AND intake = ?");
+
+        sql.append(" ORDER BY name ASC");
+
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = conn.prepareStatement(sql.toString());
             String p = "%" + keyword + "%";
             stmt.setString(1, p);
             stmt.setString(2, p);
             stmt.setString(3, p);
             stmt.setString(4, p);
             stmt.setString(5, p);
+            stmt.setString(6, p);
+
+            int idx = 7;
+            if (!"All".equals(course)) stmt.setString(idx++, course);
+            if (!"All".equals(intake)) stmt.setString(idx,   intake);
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                String type = rs.getString("member_type");
+                String type      = rs.getString("member_type");
+                String intakeVal = rs.getString("intake");
                 members.add(new Member(
                     rs.getInt("id"),
                     rs.getString("name"),
@@ -155,7 +215,8 @@ public class MemberService {
                     rs.getString("phone"),
                     rs.getString("member_id"),
                     rs.getString("department"),
-                    type != null ? type : "Student",   // ← memberType added
+                    type      != null ? type      : "Student",
+                    intakeVal != null ? intakeVal : "",
                     rs.getInt("active") == 1
                 ));
             }
@@ -165,12 +226,19 @@ public class MemberService {
         return members;
     }
 
+    // ── Get All Members ───────────────────────────────────────────────
+    public List<Member> getAllMembers() {
+        return searchMembers("", false);
+    }
+
     // ── Check Member ID exists ────────────────────────────────────────
     public boolean memberIdExists(String memberId, int excludeId) {
-        String sql = "SELECT COUNT(*) FROM members WHERE member_id = ? AND id != ?";
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "SELECT COUNT(*) FROM members " +
+                    "WHERE member_id = ? AND id != ?"
+                );
             stmt.setString(1, memberId);
             stmt.setInt(2, excludeId);
             ResultSet rs = stmt.executeQuery();
@@ -180,15 +248,14 @@ public class MemberService {
         }
     }
 
-    // ── Check active issues ───────────────────────────────────────────
+    // ── Has active issues ─────────────────────────────────────────────
     public boolean hasActiveIssues(int memberId) {
-        String sql = """
-            SELECT COUNT(*) FROM issue_records
-            WHERE member_id = ? AND status = 'ISSUED'
-        """;
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement("""
+                    SELECT COUNT(*) FROM issue_records
+                    WHERE member_id = ? AND status = 'ISSUED'
+                """);
             stmt.setInt(1, memberId);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
@@ -199,13 +266,12 @@ public class MemberService {
 
     // ── Auto-generate Member ID ───────────────────────────────────────
     public String generateMemberId() {
-        String sql = "SELECT COUNT(*) FROM members";
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            ResultSet rs = conn.createStatement().executeQuery(sql);
-            if (rs.next()) {
+            ResultSet rs = DatabaseConnection.getConnection()
+                .createStatement()
+                .executeQuery("SELECT COUNT(*) FROM members");
+            if (rs.next())
                 return String.format("TBC%04d", rs.getInt(1) + 1);
-            }
         } catch (SQLException e) {
             System.err.println("ID gen failed: " + e.getMessage());
         }

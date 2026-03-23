@@ -2,15 +2,379 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
 
-<StackPane
+<VBox
     xmlns="http://javafx.com/javafx/21"
     xmlns:fx="http://javafx.com/fxml/1"
-    prefWidth="1100" prefHeight="680"
-    style="-fx-background-color: #eef1fb;">
+    fx:controller="com.library.controller.IssueController"
+    spacing="20"
+    style="-fx-padding: 30;
+           -fx-background-color: #eef1fb;">
 
-    <Label text="🔄 Issue / Return — Coming Next!"
-           style="-fx-font-size: 20px;
-                  -fx-font-weight: bold;
-                  -fx-text-fill: #1a1a2e;"/>
-</StackPane>
+    <!-- ── HEADER ───────────────────────────────────────────────── -->
+    <HBox alignment="CENTER_LEFT" spacing="16">
+        <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <Label text="🔄 Issue / Return"
+                   style="-fx-font-size: 22px;
+                          -fx-font-weight: bold;
+                          -fx-text-fill: #1a1a2e;"/>
+            <Label text="Issue books to members and process returns"
+                   style="-fx-font-size: 13px;
+                          -fx-text-fill: #a0aec0;"/>
+        </VBox>
+    </HBox>
+
+    <!-- ── TABS ─────────────────────────────────────────────────── -->
+    <TabPane fx:id="tabPane" VBox.vgrow="ALWAYS"
+             style="-fx-background-color: transparent;
+                    -fx-tab-min-height: 40px;">
+
+        <!-- ══ TAB 1: ISSUE BOOK ══════════════════════════════════ -->
+        <Tab text="📤  Issue Book" closable="false">
+            <VBox spacing="16"
+                  style="-fx-padding: 20;
+                         -fx-background-color: #eef1fb;">
+
+                <!-- Issue Form Card -->
+                <HBox spacing="20">
+
+                    <!-- LEFT: Issue Form -->
+                    <VBox spacing="16" HBox.hgrow="ALWAYS"
+                          style="-fx-background-color: white;
+                                 -fx-background-radius: 14;
+                                 -fx-padding: 24;
+                                 -fx-effect: dropshadow(gaussian,
+                                   rgba(67,97,238,0.08),14,0,0,4);">
+
+                        <Label text="📋  Issue Details"
+                               style="-fx-font-size: 15px;
+                                      -fx-font-weight: bold;
+                                      -fx-text-fill: #1a1a2e;"/>
+                        <Separator/>
+
+                        <!-- Member Search -->
+                        <VBox spacing="6">
+                            <Label text="Member ID or Name *"
+                                   style="-fx-font-weight: bold;
+                                          -fx-font-size: 13px;
+                                          -fx-text-fill: #333;"/>
+                            <HBox spacing="10">
+                                <TextField fx:id="memberSearchField"
+                                           promptText="e.g. TBC0001 or Sameer"
+                                           prefHeight="38"
+                                           HBox.hgrow="ALWAYS"
+                                           styleClass="search-field"/>
+                                <Button text="🔍 Find"
+                                        prefHeight="38"
+                                        prefWidth="80"
+                                        styleClass="btn-primary"
+                                        onAction="#handleFindMember"/>
+                            </HBox>
+                            <Label fx:id="memberInfoLabel"
+                                   text=""
+                                   style="-fx-text-fill: #4361ee;
+                                          -fx-font-size: 12px;
+                                          -fx-font-weight: bold;"/>
+                        </VBox>
+
+                        <!-- Book Search -->
+                        <VBox spacing="6">
+                            <Label text="Book Title or ISBN *"
+                                   style="-fx-font-weight: bold;
+                                          -fx-font-size: 13px;
+                                          -fx-text-fill: #333;"/>
+                            <HBox spacing="10">
+                                <TextField fx:id="bookSearchField"
+                                           promptText="e.g. Harry Potter or ISBN"
+                                           prefHeight="38"
+                                           HBox.hgrow="ALWAYS"
+                                           styleClass="search-field"/>
+                                <Button text="🔍 Find"
+                                        prefHeight="38"
+                                        prefWidth="80"
+                                        styleClass="btn-primary"
+                                        onAction="#handleFindBook"/>
+                            </HBox>
+                            <Label fx:id="bookInfoLabel"
+                                   text=""
+                                   style="-fx-text-fill: #4361ee;
+                                          -fx-font-size: 12px;
+                                          -fx-font-weight: bold;"/>
+                        </VBox>
+
+                        <!-- Due Date Info -->
+                        <HBox spacing="10" alignment="CENTER_LEFT"
+                              style="-fx-background-color: #eef1fb;
+                                     -fx-background-radius: 8;
+                                     -fx-padding: 12;">
+                            <Label text="📅"
+                                   style="-fx-font-size: 16px;"/>
+                            <VBox spacing="2">
+                                <Label text="Loan Period: 14 days"
+                                       style="-fx-font-weight: bold;
+                                              -fx-font-size: 13px;
+                                              -fx-text-fill: #1a1a2e;"/>
+                                <Label fx:id="dueDateLabel"
+                                       text="Due date will appear here"
+                                       style="-fx-font-size: 12px;
+                                              -fx-text-fill: #a0aec0;"/>
+                            </VBox>
+                        </HBox>
+
+                        <!-- Error label -->
+                        <Label fx:id="issueErrorLabel" text=""
+                               style="-fx-text-fill: #e63946;
+                                      -fx-font-size: 12px;"/>
+
+                        <!-- Issue Button -->
+                        <Button text="📤  Issue Book"
+                                styleClass="btn-primary"
+                                prefWidth="999" prefHeight="46"
+                                onAction="#handleIssueBook"/>
+
+                    </VBox>
+
+                    <!-- RIGHT: Currently Issued Summary -->
+                    <VBox spacing="12" prefWidth="300"
+                          style="-fx-background-color: #1a1a2e;
+                                 -fx-background-radius: 14;
+                                 -fx-padding: 24;">
+
+                        <Label text="📊  Quick Stats"
+                               style="-fx-font-size: 14px;
+                                      -fx-font-weight: bold;
+                                      -fx-text-fill: white;"/>
+                        <Separator style="-fx-background-color: #252545;"/>
+
+                        <VBox spacing="4">
+                            <Label text="Currently Issued"
+                                   style="-fx-text-fill: #a0aec0;
+                                          -fx-font-size: 11px;"/>
+                            <Label fx:id="totalIssuedLabel" text="0"
+                                   style="-fx-text-fill: white;
+                                          -fx-font-size: 28px;
+                                          -fx-font-weight: bold;"/>
+                        </VBox>
+
+                        <Separator style="-fx-background-color: #252545;"/>
+
+                        <VBox spacing="4">
+                            <Label text="Overdue Books"
+                                   style="-fx-text-fill: #a0aec0;
+                                          -fx-font-size: 11px;"/>
+                            <Label fx:id="totalOverdueLabel" text="0"
+                                   style="-fx-text-fill: #e63946;
+                                          -fx-font-size: 28px;
+                                          -fx-font-weight: bold;"/>
+                        </VBox>
+
+                        <Separator style="-fx-background-color: #252545;"/>
+
+                        <VBox spacing="4">
+                            <Label text="Fine Rate"
+                                   style="-fx-text-fill: #a0aec0;
+                                          -fx-font-size: 11px;"/>
+                            <Label text="Rs. 5 / day"
+                                   style="-fx-text-fill: #4361ee;
+                                          -fx-font-size: 20px;
+                                          -fx-font-weight: bold;"/>
+                        </VBox>
+
+                    </VBox>
+                </HBox>
+
+                <!-- Currently Issued Table -->
+                <VBox spacing="10"
+                      style="-fx-background-color: white;
+                             -fx-background-radius: 14;
+                             -fx-padding: 20;
+                             -fx-effect: dropshadow(gaussian,
+                               rgba(67,97,238,0.07),14,0,0,4);">
+
+                    <HBox alignment="CENTER_LEFT" spacing="12">
+                        <Label text="📋  Currently Issued Books"
+                               style="-fx-font-size: 14px;
+                                      -fx-font-weight: bold;
+                                      -fx-text-fill: #1a1a2e;"
+                               HBox.hgrow="ALWAYS"/>
+                        <TextField fx:id="issuedSearchField"
+                                   promptText="Search issued books..."
+                                   styleClass="search-field"
+                                   prefWidth="240"
+                                   prefHeight="36"
+                                   onKeyReleased="#handleSearchIssued"/>
+                    </HBox>
+
+                    <TableView fx:id="issuedTable"
+                               prefHeight="220"
+                               styleClass="table-view">
+                        <columns>
+                            <TableColumn fx:id="colIssueId"
+                                         text="ID" prefWidth="50"/>
+                            <TableColumn fx:id="colIssueMember"
+                                         text="Member" prefWidth="150"/>
+                            <TableColumn fx:id="colIssueMemberId"
+                                         text="Member ID" prefWidth="100"/>
+                            <TableColumn fx:id="colIssueBook"
+                                         text="Book Title" prefWidth="200"/>
+                            <TableColumn fx:id="colIssueDate"
+                                         text="Issue Date" prefWidth="100"/>
+                            <TableColumn fx:id="colDueDate"
+                                         text="Due Date" prefWidth="100"/>
+                            <TableColumn fx:id="colIssueFine"
+                                         text="Fine So Far" prefWidth="100"/>
+                            <TableColumn fx:id="colIssueStatus"
+                                         text="Status" prefWidth="90"/>
+                        </columns>
+                        <placeholder>
+                            <Label text="No books currently issued."
+                                   style="-fx-text-fill: #a0aec0;"/>
+                        </placeholder>
+                    </TableView>
+                </VBox>
+
+            </VBox>
+        </Tab>
+
+        <!-- ══ TAB 2: RETURN BOOK ═════════════════════════════════ -->
+        <Tab text="📥  Return Book" closable="false">
+            <VBox spacing="16"
+                  style="-fx-padding: 20;
+                         -fx-background-color: #eef1fb;">
+
+                <!-- Search by member -->
+                <VBox spacing="10"
+                      style="-fx-background-color: white;
+                             -fx-background-radius: 14;
+                             -fx-padding: 20;
+                             -fx-effect: dropshadow(gaussian,
+                               rgba(67,97,238,0.07),14,0,0,4);">
+
+                    <Label text="🔍  Find Member's Issued Books"
+                           style="-fx-font-size: 14px;
+                                  -fx-font-weight: bold;
+                                  -fx-text-fill: #1a1a2e;"/>
+                    <Separator/>
+
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <TextField fx:id="returnSearchField"
+                                   promptText="Enter Member ID or Name..."
+                                   styleClass="search-field"
+                                   prefWidth="340"
+                                   prefHeight="40"/>
+                        <Button text="🔍  Search"
+                                prefHeight="40"
+                                prefWidth="120"
+                                styleClass="btn-primary"
+                                onAction="#handleSearchReturn"/>
+                        <Button text="Show All"
+                                prefHeight="40"
+                                prefWidth="100"
+                                styleClass="btn-secondary"
+                                onAction="#handleShowAllIssued"/>
+                    </HBox>
+                </VBox>
+
+                <!-- Return Table -->
+                <VBox spacing="10" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: white;
+                             -fx-background-radius: 14;
+                             -fx-padding: 20;
+                             -fx-effect: dropshadow(gaussian,
+                               rgba(67,97,238,0.07),14,0,0,4);">
+
+                    <Label text="📚  Select a record and click Return"
+                           style="-fx-font-size: 13px;
+                                  -fx-text-fill: #a0aec0;"/>
+
+                    <TableView fx:id="returnTable"
+                               VBox.vgrow="ALWAYS"
+                               prefHeight="300"
+                               styleClass="table-view">
+                        <columns>
+                            <TableColumn fx:id="colReturnId"
+                                         text="ID" prefWidth="50"/>
+                            <TableColumn fx:id="colReturnMember"
+                                         text="Member" prefWidth="150"/>
+                            <TableColumn fx:id="colReturnMemberId"
+                                         text="Member ID" prefWidth="100"/>
+                            <TableColumn fx:id="colReturnBook"
+                                         text="Book Title" prefWidth="200"/>
+                            <TableColumn fx:id="colReturnIssueDate"
+                                         text="Issue Date" prefWidth="100"/>
+                            <TableColumn fx:id="colReturnDueDate"
+                                         text="Due Date" prefWidth="100"/>
+                            <TableColumn fx:id="colReturnFine"
+                                         text="Fine (Rs.)" prefWidth="100"/>
+                            <TableColumn fx:id="colReturnAction"
+                                         text="Action" prefWidth="120"/>
+                        </columns>
+                        <placeholder>
+                            <Label text="Search for a member to see their issued books."
+                                   style="-fx-text-fill: #a0aec0;"/>
+                        </placeholder>
+                    </TableView>
+                </VBox>
+
+            </VBox>
+        </Tab>
+
+        <!-- ══ TAB 3: OVERDUE ════════════════════════════════════ -->
+        <Tab text="⚠️  Overdue" closable="false">
+            <VBox spacing="16"
+                  style="-fx-padding: 20;
+                         -fx-background-color: #eef1fb;">
+
+                <VBox spacing="10"
+                      style="-fx-background-color: white;
+                             -fx-background-radius: 14;
+                             -fx-padding: 20;
+                             -fx-effect: dropshadow(gaussian,
+                               rgba(67,97,238,0.07),14,0,0,4);">
+
+                    <HBox alignment="CENTER_LEFT">
+                        <Label text="⚠️  Overdue Books"
+                               style="-fx-font-size: 14px;
+                                      -fx-font-weight: bold;
+                                      -fx-text-fill: #e63946;"
+                               HBox.hgrow="ALWAYS"/>
+                        <Button text="🔄 Refresh"
+                                styleClass="btn-secondary"
+                                prefHeight="34"
+                                onAction="#handleRefreshOverdue"/>
+                    </HBox>
+                    <Separator/>
+
+                    <TableView fx:id="overdueTable"
+                               prefHeight="400"
+                               styleClass="table-view">
+                        <columns>
+                            <TableColumn fx:id="colOvMember"
+                                         text="Member" prefWidth="160"/>
+                            <TableColumn fx:id="colOvMemberId"
+                                         text="Member ID" prefWidth="100"/>
+                            <TableColumn fx:id="colOvBook"
+                                         text="Book Title" prefWidth="200"/>
+                            <TableColumn fx:id="colOvIssueDate"
+                                         text="Issue Date" prefWidth="100"/>
+                            <TableColumn fx:id="colOvDueDate"
+                                         text="Due Date" prefWidth="100"/>
+                            <TableColumn fx:id="colOvFine"
+                                         text="Fine (Rs.)" prefWidth="110"/>
+                            <TableColumn fx:id="colOvAction"
+                                         text="Action" prefWidth="120"/>
+                        </columns>
+                        <placeholder>
+                            <Label text="✅ No overdue books right now!"
+                                   style="-fx-text-fill: #2dc653;
+                                          -fx-font-size: 14px;
+                                          -fx-font-weight: bold;"/>
+                        </placeholder>
+                    </TableView>
+                </VBox>
+            </VBox>
+        </Tab>
+
+    </TabPane>
+</VBox>

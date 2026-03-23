@@ -2,26 +2,22 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.geometry.Insets?>
 
 <VBox
     xmlns="http://javafx.com/javafx/21"
     xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.library.controller.MemberController"
     spacing="20"
-    style="-fx-padding: 30;
-           -fx-background-color: #eef1fb;">
+    style="-fx-padding: 30; -fx-background-color: #eef1fb;">
 
     <!-- ── HEADER ───────────────────────────────────────────────── -->
     <HBox alignment="CENTER_LEFT" spacing="16">
         <VBox spacing="3" HBox.hgrow="ALWAYS">
             <Label text="👥 Members Management"
-                   style="-fx-font-size: 22px;
-                          -fx-font-weight: bold;
+                   style="-fx-font-size: 22px; -fx-font-weight: bold;
                           -fx-text-fill: #1a1a2e;"/>
-            <Label text="Register and manage library members"
-                   style="-fx-font-size: 13px;
-                          -fx-text-fill: #a0aec0;"/>
+            <Label text="Register and manage The British College library members"
+                   style="-fx-font-size: 13px; -fx-text-fill: #a0aec0;"/>
         </VBox>
         <Button text="➕  Register Member"
                 styleClass="btn-primary"
@@ -29,72 +25,87 @@
                 onAction="#handleAddMember"/>
     </HBox>
 
-    <!-- ── SEARCH + FILTER ROW ──────────────────────────────────── -->
-    <HBox spacing="12" alignment="CENTER_LEFT">
-        <TextField
-            fx:id="searchField"
-            promptText="🔍  Search by name, ID, department..."
-            styleClass="search-field"
-            prefWidth="360"
-            onKeyReleased="#handleSearch"/>
+    <!-- ── FILTERS ROW ──────────────────────────────────────────── -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
 
-        <ComboBox
-            fx:id="departmentFilter"
-            promptText="All Departments"
-            prefWidth="200"
-            prefHeight="40"
-            onAction="#handleDepartmentFilter"/>
+        <!-- Search -->
+        <TextField fx:id="searchField"
+                   promptText="🔍  Search name, ID..."
+                   styleClass="search-field"
+                   prefWidth="220" prefHeight="40"
+                   onKeyReleased="#handleSearch"/>
 
-        <CheckBox
-            fx:id="showInactiveCheck"
-            text="Show Inactive"
-            style="-fx-font-size: 13px; -fx-text-fill: #4a5568;"
-            onAction="#handleShowInactive"/>
+        <!-- Course Filter -->
+        <ComboBox fx:id="courseFilter"
+                  promptText="All Courses"
+                  prefWidth="200" prefHeight="40"
+                  onAction="#handleFilterChange"/>
 
-        <Button text="Clear"
+        <!-- Intake Filter -->
+        <ComboBox fx:id="intakeFilter"
+                  promptText="All Intakes"
+                  prefWidth="140" prefHeight="40"
+                  onAction="#handleFilterChange"/>
+
+        <!-- Type Filter -->
+        <ComboBox fx:id="typeFilter"
+                  promptText="All Types"
+                  prefWidth="130" prefHeight="40"
+                  onAction="#handleFilterChange"/>
+
+        <!-- Show Inactive -->
+        <CheckBox fx:id="showInactiveCheck"
+                  text="Show Inactive"
+                  style="-fx-font-size: 13px; -fx-text-fill: #4a5568;"
+                  onAction="#handleFilterChange"/>
+
+        <!-- Clear -->
+        <Button text="✕ Clear"
                 styleClass="btn-secondary"
                 prefHeight="40"
                 onAction="#handleClearSearch"/>
+
     </HBox>
 
-    <!-- ── MEMBERS TABLE ────────────────────────────────────────── -->
-    <TableView
-        fx:id="membersTable"
-        VBox.vgrow="ALWAYS"
-        styleClass="table-view">
-
+    <!-- ── TABLE ────────────────────────────────────────────────── -->
+    <TableView fx:id="membersTable"
+               VBox.vgrow="ALWAYS"
+               styleClass="table-view">
         <columns>
             <TableColumn fx:id="colId"
-                        text="ID" prefWidth="50"/>
+                         text="ID" prefWidth="50"/>
             <TableColumn fx:id="colMemberId"
-                        text="Member ID" prefWidth="100"/>
+                         text="Member ID" prefWidth="100"/>
             <TableColumn fx:id="colName"
-                        text="Full Name" prefWidth="180"/>
+                         text="Full Name" prefWidth="170"/>
             <TableColumn fx:id="colType"
-                        text="Type" prefWidth="100"/>
+                         text="Type" prefWidth="95"/>
             <TableColumn fx:id="colDepartment"
-                        text="Department" prefWidth="140"/>
+                         text="Course" prefWidth="180"/>
+            <TableColumn fx:id="colIntake"
+                         text="Intake" prefWidth="110"/>
             <TableColumn fx:id="colPhone"
-                        text="Phone" prefWidth="110"/>
-            <TableColumn fx:id="colEmail"
-                        text="Email" prefWidth="160"/>
+                         text="Phone" prefWidth="110"/>
             <TableColumn fx:id="colStatus"
-                        text="Status" prefWidth="75"/>
+                         text="Status" prefWidth="75"/>
             <TableColumn fx:id="colActions"
-                        text="Actions" prefWidth="190"/>
+                         text="Actions" prefWidth="190"/>
         </columns>
-
         <placeholder>
-            <Label text="No members found. Click '➕ Register Member' to add one."
+            <Label text="No members found."
                    style="-fx-text-fill: #a0aec0; -fx-font-size: 13px;"/>
         </placeholder>
     </TableView>
 
     <!-- ── STATUS BAR ───────────────────────────────────────────── -->
-    <HBox alignment="CENTER_LEFT">
+    <HBox alignment="CENTER_LEFT" spacing="20">
         <Label fx:id="statusLabel"
                text="Total: 0 member(s)"
                style="-fx-text-fill: #a0aec0; -fx-font-size: 12px;"/>
+        <Label fx:id="filterInfoLabel"
+               text=""
+               style="-fx-text-fill: #4361ee; -fx-font-size: 12px;
+                      -fx-font-weight: bold;"/>
     </HBox>
 
 </VBox>

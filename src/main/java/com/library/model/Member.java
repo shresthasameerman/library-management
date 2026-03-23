@@ -10,12 +10,13 @@ public class Member {
     private final StringProperty  phone;
     private final StringProperty  memberId;
     private final StringProperty  department;
-    private final StringProperty  memberType;   // "Student" or "Staff"
+    private final StringProperty  memberType;
+    private final StringProperty  intake;
     private final BooleanProperty active;
 
     public Member(int id, String name, String email, String phone,
                   String memberId, String department,
-                  String memberType, boolean active) {
+                  String memberType, String intake, boolean active) {
         this.id         = new SimpleIntegerProperty(id);
         this.name       = new SimpleStringProperty(name);
         this.email      = new SimpleStringProperty(email);
@@ -23,12 +24,13 @@ public class Member {
         this.memberId   = new SimpleStringProperty(memberId);
         this.department = new SimpleStringProperty(department);
         this.memberType = new SimpleStringProperty(memberType);
+        this.intake     = new SimpleStringProperty(intake);
         this.active     = new SimpleBooleanProperty(active);
     }
 
     // ── ID ────────────────────────────────────────────────────────────
-    public int getId()                   { return id.get(); }
-    public IntegerProperty idProperty()  { return id; }
+    public int    getId()                  { return id.get(); }
+    public IntegerProperty idProperty()    { return id; }
 
     // ── Name ──────────────────────────────────────────────────────────
     public String getName()               { return name.get(); }
@@ -50,7 +52,7 @@ public class Member {
     public void   setMemberId(String v)      { memberId.set(v); }
     public StringProperty memberIdProperty() { return memberId; }
 
-    // ── Department ────────────────────────────────────────────────────
+    // ── Department (Course) ───────────────────────────────────────────
     public String getDepartment()              { return department.get(); }
     public void   setDepartment(String v)      { department.set(v); }
     public StringProperty departmentProperty() { return department; }
@@ -59,6 +61,11 @@ public class Member {
     public String getMemberType()              { return memberType.get(); }
     public void   setMemberType(String v)      { memberType.set(v); }
     public StringProperty memberTypeProperty() { return memberType; }
+
+    // ── Intake ────────────────────────────────────────────────────────
+    public String getIntake()              { return intake.get(); }
+    public void   setIntake(String v)      { intake.set(v); }
+    public StringProperty intakeProperty() { return intake; }
 
     // ── Active ────────────────────────────────────────────────────────
     public boolean isActive()               { return active.get(); }

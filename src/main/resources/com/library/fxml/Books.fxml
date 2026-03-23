@@ -2,85 +2,79 @@
 
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.geometry.Insets?>
 
 <VBox
     xmlns="http://javafx.com/javafx/21"
     xmlns:fx="http://javafx.com/fxml/1"
     fx:controller="com.library.controller.BookController"
     spacing="20"
-    style="-fx-padding: 30; -fx-background-color: #f0f2f5;">
+    style="-fx-padding: 30; -fx-background-color: #eef1fb;">
 
-    <!-- ── HEADER ROW ───────────────────────────────────────────── -->
+    <!-- ── HEADER ───────────────────────────────────────────────── -->
     <HBox alignment="CENTER_LEFT" spacing="16">
-        <Label text="📖 Books Management"
-               styleClass="page-title"/>
-        <Region HBox.hgrow="ALWAYS"/>
+        <VBox spacing="3" HBox.hgrow="ALWAYS">
+            <Label text="📖 Books Management"
+                   style="-fx-font-size: 22px; -fx-font-weight: bold;
+                          -fx-text-fill: #1a1a2e;"/>
+            <Label text="Manage your library collection"
+                   style="-fx-font-size: 13px; -fx-text-fill: #a0aec0;"/>
+        </VBox>
         <Button text="➕  Add New Book"
                 styleClass="btn-primary"
-                prefWidth="160" prefHeight="38"
+                prefWidth="160" prefHeight="40"
                 onAction="#handleAddBook"/>
     </HBox>
 
-    <!-- ── SEARCH + FILTER ROW ──────────────────────────────────── -->
+    <!-- ── SEARCH + FILTER ──────────────────────────────────────── -->
     <HBox spacing="12" alignment="CENTER_LEFT">
-        <TextField
-            fx:id="searchField"
-            promptText="🔍  Search by title, author, ISBN, category..."
-            styleClass="search-field"
-            prefWidth="380"
-            onKeyReleased="#handleSearch"/>
-
-        <ComboBox
-            fx:id="categoryFilter"
-            promptText="All Categories"
-            prefWidth="180"
-            prefHeight="38"
-            onAction="#handleCategoryFilter"/>
-
-        <Button text="Clear"
+        <TextField fx:id="searchField"
+                   promptText="🔍  Search title, author, ISBN, accession, class no..."
+                   styleClass="search-field"
+                   prefWidth="400" prefHeight="40"
+                   onKeyReleased="#handleSearch"/>
+        <ComboBox fx:id="categoryFilter"
+                  promptText="All Categories"
+                  prefWidth="180" prefHeight="40"
+                  onAction="#handleCategoryFilter"/>
+        <Button text="✕ Clear"
                 styleClass="btn-secondary"
-                prefHeight="38"
+                prefHeight="40"
                 onAction="#handleClearSearch"/>
     </HBox>
 
-    <!-- ── BOOKS TABLE ──────────────────────────────────────────── -->
-    <TableView
-        fx:id="booksTable"
-        VBox.vgrow="ALWAYS"
-        styleClass="table-view"
-        style="-fx-pref-height: 420px;">
-
+    <!-- ── TABLE ────────────────────────────────────────────────── -->
+    <TableView fx:id="booksTable"
+               VBox.vgrow="ALWAYS"
+               styleClass="table-view">
         <columns>
             <TableColumn fx:id="colId"
-                         text="ID" prefWidth="50"/>
+                         text="ID" prefWidth="45"/>
+            <TableColumn fx:id="colAccession"
+                         text="Accession No." prefWidth="120"/>
             <TableColumn fx:id="colTitle"
-                         text="Title" prefWidth="220"/>
+                         text="Title" prefWidth="200"/>
             <TableColumn fx:id="colAuthor"
-                         text="Author" prefWidth="160"/>
-            <TableColumn fx:id="colIsbn"
-                         text="ISBN" prefWidth="120"/>
+                         text="Author" prefWidth="140"/>
+            <TableColumn fx:id="colClassification"
+                         text="Class No." prefWidth="100"/>
             <TableColumn fx:id="colCategory"
-                         text="Category" prefWidth="120"/>
+                         text="Category" prefWidth="100"/>
             <TableColumn fx:id="colTotal"
-                         text="Total" prefWidth="60"/>
+                         text="Total" prefWidth="55"/>
             <TableColumn fx:id="colAvailable"
-                         text="Available" prefWidth="80"/>
+                         text="Avail." prefWidth="55"/>
             <TableColumn fx:id="colActions"
-                         text="Actions" prefWidth="150"/>
+                         text="Actions" prefWidth="180"/>
         </columns>
-
         <placeholder>
             <Label text="No books found. Click '➕ Add New Book' to get started."
-                   style="-fx-text-fill: #888888; -fx-font-size: 13px;"/>
+                   style="-fx-text-fill: #a0aec0; -fx-font-size: 13px;"/>
         </placeholder>
     </TableView>
 
-    <!-- ── BOTTOM STATUS ROW ────────────────────────────────────── -->
-    <HBox alignment="CENTER_LEFT" spacing="12">
-        <Label fx:id="statusLabel"
-               text="Total: 0 books"
-               style="-fx-text-fill: #888888; -fx-font-size: 12px;"/>
-    </HBox>
+    <!-- ── STATUS ───────────────────────────────────────────────── -->
+    <Label fx:id="statusLabel"
+           text="Total: 0 books"
+           style="-fx-text-fill: #a0aec0; -fx-font-size: 12px;"/>
 
 </VBox>
