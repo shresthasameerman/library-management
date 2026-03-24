@@ -114,9 +114,10 @@ public class BookService {
         return searchBooks("");
     }
 
-    // ── Search Books ──────────────────────────────────────────────────
+    // ── Search Books (with range-based accession search) ──────────────
     public List<Book> searchBooks(String keyword) {
         List<Book> books = new ArrayList<>();
+
         String sql = """
             SELECT id, title, author, isbn, category,
                    total_copies, available_copies,
@@ -125,25 +126,89 @@ public class BookService {
                    place_of_publication, year_of_publication,
                    number_of_pages
             FROM books
-            WHERE title               LIKE ?
-               OR author              LIKE ?
-               OR isbn                LIKE ?
-               OR category            LIKE ?
-               OR accession_number    LIKE ?
+            WHERE title                 LIKE ?
+               OR author                LIKE ?
+               OR isbn                  LIKE ?
+               OR category              LIKE ?
+               OR accession_number      LIKE ?
                OR classification_number LIKE ?
+               OR publisher             LIKE ?
             ORDER BY title ASC
         """;
+
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
             String p = "%" + keyword + "%";
-            for (int i = 1; i <= 6; i++) stmt.setString(i, p);
+            for (int i = 1; i <= 7; i++) stmt.setString(i, p);
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) books.add(mapBook(rs));
+
+            // ── Range-based accession search ──────────────────────────
+            // If keyword looks numeric, check if it falls
+            // within any book's accession range
+            if (keyword != null && !keyword.isBlank()) {
+                try {
+                    String cleanKeyword = keyword.trim()
+                        .replaceAll("[^0-9]", "");
+                    if (!cleanKeyword.isEmpty()) {
+                        int searchNum = Integer.parseInt(cleanKeyword);
+
+                        String rangeSql = """
+                            SELECT id, title, author, isbn, category,
+                                   total_copies, available_copies,
+                                   accession_number, classification_number,
+                                   cutter_number, edition, publisher,
+                                   place_of_publication, year_of_publication,
+                                   number_of_pages
+                            FROM books
+                            WHERE accession_number IS NOT NULL
+                            AND   accession_number != ''
+                        """;
+
+                        PreparedStatement rangeStmt =
+                            conn.prepareStatement(rangeSql);
+                        ResultSet rangeRs = rangeStmt.executeQuery();
+
+                        while (rangeRs.next()) {
+                            int bookDbId = rangeRs.getInt("id");
+
+                            // Skip if already found in text search
+                            final int fId = bookDbId;
+                            boolean alreadyFound = books.stream()
+                                .anyMatch(b -> b.getId() == fId);
+                            if (alreadyFound) continue;
+
+                            String accStr = rangeRs.getString(
+                                "accession_number");
+                            int copies = rangeRs.getInt("total_copies");
+
+                            try {
+                                int startNum = Integer.parseInt(
+                                    accStr.replaceAll("[^0-9]", "")
+                                );
+                                int endNum = startNum + copies - 1;
+
+                                // Check if searched number is in range
+                                if (searchNum >= startNum
+                                        && searchNum <= endNum) {
+                                    books.add(mapBook(rangeRs));
+                                }
+                            } catch (NumberFormatException ignored) {
+                                // Non-numeric accession — skip
+                            }
+                        }
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Keyword not numeric — skip range search
+                }
+            }
+
         } catch (SQLException e) {
             System.err.println("Search failed: " + e.getMessage());
         }
+
         return books;
     }
 
@@ -159,7 +224,9 @@ public class BookService {
             stmt.setInt(2, excludeId);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
-        } catch (SQLException e) { return false; }
+        } catch (SQLException e) {
+            return false;
+        }
     }
 
     // ── Check Accession Number exists ─────────────────────────────────
@@ -175,7 +242,83 @@ public class BookService {
             stmt.setInt(2, excludeId);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
-        } catch (SQLException e) { return false; }
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    // ── Check if accession range is available ─────────────────────────
+    public boolean isAccessionRangeAvailable(int start, int copies,
+                                              int excludeId) {
+        int end = start + copies - 1;
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement("""
+                SELECT accession_number, total_copies
+                FROM books
+                WHERE accession_number IS NOT NULL
+                AND   accession_number != ''
+                AND   id != ?
+            """);
+            stmt.setInt(1, excludeId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String accStr  = rs.getString("accession_number");
+                int    copies2 = rs.getInt("total_copies");
+                try {
+                    int existStart = Integer.parseInt(
+                        accStr.replaceAll("[^0-9]", "")
+                    );
+                    int existEnd = existStart + copies2 - 1;
+
+                    // Check overlap
+                    if (start <= existEnd && end >= existStart) {
+                        System.err.println("Range conflict: " +
+                            start + "-" + end +
+                            " overlaps " + existStart + "-" + existEnd);
+                        return false;
+                    }
+                } catch (NumberFormatException ignored) {}
+            }
+            return true;
+        } catch (SQLException e) {
+            System.err.println("Range check failed: " + e.getMessage());
+            return true;
+        }
+    }
+
+    // ── Get accession range display string ────────────────────────────
+    public static String getAccessionRange(String start, int copies) {
+        if (start == null || start.isBlank()) return "";
+        try {
+            String numericPart = start.replaceAll("[^0-9]", "");
+            String prefix      = start.replaceAll("[0-9]", "");
+            if (numericPart.isEmpty()) return start;
+
+            int startNum = Integer.parseInt(numericPart);
+            int endNum   = startNum + copies - 1;
+
+            if (copies == 1) return start;
+            return prefix + startNum + " → " + prefix + endNum;
+        } catch (NumberFormatException e) {
+            return start;
+        }
+    }
+
+    // ── Get latest inserted book id ───────────────────────────────────
+    public int getLastInsertedId() {
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "SELECT id FROM books ORDER BY id DESC LIMIT 1"
+                );
+            ResultSet rs = stmt.executeQuery();
+            return rs.next() ? rs.getInt("id") : 0;
+        } catch (SQLException e) {
+            System.err.println("Fetch last book id failed: " + e.getMessage());
+            return 0;
+        }
     }
 
     // ── Map ResultSet → Book ──────────────────────────────────────────

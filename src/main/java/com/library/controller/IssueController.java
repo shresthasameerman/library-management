@@ -1,7 +1,9 @@
 package com.library.controller;
 import com.library.model.Book;
+import com.library.model.BookCopy;
 import com.library.model.IssueRecord;
 import com.library.model.Member;
+import com.library.service.BookCopyService;
 import com.library.service.BookService;
 import com.library.service.IssueService;
 import com.library.service.MemberService;
@@ -11,9 +13,16 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.net.URL;
 import java.time.LocalDate;
@@ -21,7 +30,6 @@ import java.util.List;
 import java.util.ResourceBundle;
 
 public class IssueController implements Initializable {
-
     // ── Issue Tab ─────────────────────────────────────────────────────
     @FXML private TextField  memberSearchField;
     @FXML private TextField  bookSearchField;
@@ -32,6 +40,7 @@ public class IssueController implements Initializable {
     @FXML private Label      totalIssuedLabel;
     @FXML private Label      totalOverdueLabel;
     @FXML private TextField  issuedSearchField;
+    @FXML private ComboBox<BookCopy> copyComboBox;
 
     @FXML private TableView<IssueRecord>           issuedTable;
     @FXML private TableColumn<IssueRecord,Integer> colIssueId;
@@ -74,6 +83,7 @@ public class IssueController implements Initializable {
     // ── State ─────────────────────────────────────────────────────────
     private Member selectedMember = null;
     private Book   selectedBook   = null;
+    private BookCopy selectedCopy = null;
 
     private final ObservableList<IssueRecord> issuedList  =
         FXCollections.observableArrayList();
@@ -88,6 +98,7 @@ public class IssueController implements Initializable {
         setupReturnTable();
         setupOverdueTable();
         loadIssuedBooks();
+        loadReturnBooks();
         loadOverdueBooks();
         updateStats();
 
@@ -97,6 +108,20 @@ public class IssueController implements Initializable {
                 .plusDays(issueService.getLoanDays())
                 .toString()
         );
+
+        // Copy selection listener
+        if (copyComboBox != null) {
+            copyComboBox.setVisible(false);
+            copyComboBox.valueProperty().addListener((obs, old, newVal) -> {
+                selectedCopy = newVal;
+                if (newVal != null) {
+                    bookInfoLabel.setText(
+                        "✅ " + (selectedBook != null ? selectedBook.getTitle() : "") +
+                        " | Copy: " + newVal.getAccessionNumber()
+                    );
+                }
+            });
+        }
     }
 
     // ── Setup Tables ──────────────────────────────────────────────────
@@ -293,15 +318,124 @@ public class IssueController implements Initializable {
                 );
                 memberInfoLabel.setStyle("-fx-text-fill: #2dc653;");
             } else {
-                selectedMember = results.get(0);
-                memberInfoLabel.setText(
-                    "✅ " + selectedMember.getName() +
-                    " (" + selectedMember.getDepartment() + ")" +
-                    " — " + results.size() + " results, showing first"
-                );
-                memberInfoLabel.setStyle("-fx-text-fill: #f77f00;");
+                Member picked = chooseMemberFromList(results);
+                if (picked != null) {
+                    selectedMember = picked;
+                    memberInfoLabel.setText(
+                        "✅ " + selectedMember.getName() +
+                        "  |  " + selectedMember.getMemberId() +
+                        "  |  " + selectedMember.getDepartment() +
+                        "  |  " + selectedMember.getIntake()
+                    );
+                    memberInfoLabel.setStyle("-fx-text-fill: #2dc653;");
+                } else {
+                    selectedMember = null;
+                    memberInfoLabel.setText(
+                        "⚠ Multiple matches found. Please choose one from the list."
+                    );
+                    memberInfoLabel.setStyle("-fx-text-fill: #f77f00;");
+                }
             }
         }
+
+    private Member chooseMemberFromList(List<Member> results) {
+        TableView<Member> table = new TableView<>();
+        table.setItems(FXCollections.observableArrayList(results));
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setPrefHeight(300);
+
+        TableColumn<Member, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<Member, String> idCol = new TableColumn<>("Member ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("memberId"));
+
+        TableColumn<Member, String> typeCol = new TableColumn<>("Type");
+        typeCol.setCellValueFactory(new PropertyValueFactory<>("memberType"));
+
+        TableColumn<Member, String> deptCol = new TableColumn<>("Department");
+        deptCol.setCellValueFactory(new PropertyValueFactory<>("department"));
+
+        TableColumn<Member, String> intakeCol = new TableColumn<>("Intake");
+        intakeCol.setCellValueFactory(new PropertyValueFactory<>("intake"));
+
+        TableColumn<Member, String> emailCol = new TableColumn<>("Email");
+        emailCol.setCellValueFactory(new PropertyValueFactory<>("email"));
+
+        TableColumn<Member, String> phoneCol = new TableColumn<>("Phone");
+        phoneCol.setCellValueFactory(new PropertyValueFactory<>("phone"));
+
+        table.getColumns().addAll(
+            nameCol,
+            idCol,
+            typeCol,
+            deptCol,
+            intakeCol,
+            emailCol,
+            phoneCol
+        );
+
+        Label hint = new Label("Select the correct student/staff from the list.");
+        hint.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
+
+        Label error = new Label();
+        error.setStyle("-fx-text-fill: #e63946; -fx-font-size: 12px;");
+
+        Button selectBtn = new Button("Select");
+        selectBtn.setStyle(
+            "-fx-background-color: #4361ee; -fx-text-fill: white;" +
+            "-fx-font-weight: bold; -fx-background-radius: 6;" +
+            "-fx-cursor: hand; -fx-padding: 6 14 6 14;"
+        );
+        Button cancelBtn = new Button("Cancel");
+        cancelBtn.setStyle(
+            "-fx-background-color: #eef1fb; -fx-background-radius: 6;" +
+            "-fx-cursor: hand; -fx-padding: 6 14 6 14;"
+        );
+
+        final Member[] selected = {null};
+
+        table.setRowFactory(tv -> {
+            TableRow<Member> row = new TableRow<>();
+            row.setOnMouseClicked(e -> {
+                if (e.getClickCount() == 2 && !row.isEmpty()) {
+                    selected[0] = row.getItem();
+                    ((Stage) row.getScene().getWindow()).close();
+                }
+            });
+            return row;
+        });
+
+        Stage dialog = new Stage();
+
+        selectBtn.setOnAction(e -> {
+            Member m = table.getSelectionModel().getSelectedItem();
+            if (m == null) {
+                error.setText("Please select a member.");
+                return;
+            }
+            selected[0] = m;
+            dialog.close();
+        });
+        cancelBtn.setOnAction(e -> dialog.close());
+
+        HBox btnRow = new HBox(10, selectBtn, cancelBtn);
+        btnRow.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox root = new VBox(10, hint, table, error, btnRow);
+        root.setPadding(new Insets(16));
+        root.setStyle("-fx-background-color: white;");
+
+        dialog.setTitle("Select Member");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
+        dialog.setScene(new Scene(root, 1080, 440));
+        dialog.setResizable(true);
+
+        dialog.showAndWait();
+        return selected[0];
+    }
 
     // ── Find Book ─────────────────────────────────────────────────────
     @FXML
@@ -314,7 +448,6 @@ public class IssueController implements Initializable {
         }
 
         List<Book> results = bookService.searchBooks(keyword);
-        // Filter to available books only
         List<Book> available = results.stream()
             .filter(b -> b.getAvailableCopies() > 0)
             .toList();
@@ -323,20 +456,36 @@ public class IssueController implements Initializable {
             bookInfoLabel.setText("❌ No available copies found.");
             bookInfoLabel.setStyle("-fx-text-fill: #e63946;");
             selectedBook = null;
-        } else if (available.size() == 1) {
-            selectedBook = available.get(0);
-            bookInfoLabel.setText(
-                "✅ " + selectedBook.getTitle() +
-                " | " + selectedBook.getAvailableCopies() + " copies available"
-            );
-            bookInfoLabel.setStyle("-fx-text-fill: #2dc653;");
+            selectedCopy = null;
+            copyComboBox.setVisible(false);
         } else {
             selectedBook = available.get(0);
+
+            // Load available copies
+            BookCopyService copyService = new BookCopyService();
+            List<BookCopy> copies = copyService.getAvailableCopies(
+                selectedBook.getId());
+
+            if (copies.isEmpty()) {
+                bookInfoLabel.setText("❌ No available copies.");
+                bookInfoLabel.setStyle("-fx-text-fill: #e63946;");
+                selectedCopy = null;
+                copyComboBox.setVisible(false);
+                return;
+            }
+
+            // Populate copy dropdown
+            copyComboBox.setItems(
+                FXCollections.observableArrayList(copies));
+            copyComboBox.setValue(copies.get(0));
+            copyComboBox.setVisible(true);
+            selectedCopy = copies.get(0);
+
             bookInfoLabel.setText(
                 "✅ " + selectedBook.getTitle() +
-                " (and " + (available.size()-1) + " more — be more specific)"
+                " | " + copies.size() + " copies available"
             );
-            bookInfoLabel.setStyle("-fx-text-fill: #f77f00;");
+            bookInfoLabel.setStyle("-fx-text-fill: #2dc653;");
         }
     }
 
@@ -353,31 +502,39 @@ public class IssueController implements Initializable {
             issueErrorLabel.setText("⚠ Please find and select a book first.");
             return;
         }
+        if (selectedCopy == null) {
+            issueErrorLabel.setText("⚠ Please select a copy to issue.");
+            return;
+        }
 
         boolean success = issueService.issueBook(
-            selectedBook.getId(), selectedMember.getId()
+            selectedBook.getId(),
+            selectedMember.getId(),
+            selectedCopy.getId(),
+            selectedCopy.getAccessionNumber()
         );
 
         if (success) {
-            // Reset form
             memberSearchField.clear();
             bookSearchField.clear();
             memberInfoLabel.setText("");
             bookInfoLabel.setText("");
+            copyComboBox.setVisible(false);
             selectedMember = null;
             selectedBook   = null;
+            selectedCopy   = null;
 
             loadIssuedBooks();
+            loadReturnBooks();
             loadOverdueBooks();
             updateStats();
 
             AlertHelper.showSuccess("Book Issued!",
-                "Book has been issued successfully.\n" +
+                "Copy issued successfully.\n" +
                 "Due in " + issueService.getLoanDays() + " days.");
         } else {
             issueErrorLabel.setText(
-                "⚠ Could not issue. Book may be unavailable\n" +
-                "or member already has this book."
+                "⚠ Could not issue. Try again."
             );
         }
     }
@@ -471,6 +628,10 @@ public class IssueController implements Initializable {
     // ── Helpers ───────────────────────────────────────────────────────
     private void loadIssuedBooks() {
         issuedList.setAll(issueService.getIssuedBooks(""));
+    }
+
+    private void loadReturnBooks() {
+        returnList.setAll(issueService.getIssuedBooks(""));
     }
 
     private void loadOverdueBooks() {

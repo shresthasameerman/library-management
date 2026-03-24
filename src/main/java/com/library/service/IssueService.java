@@ -19,6 +19,36 @@ public class IssueService {
 
     // ── Issue a Book ──────────────────────────────────────────────────
     public boolean issueBook(int bookId, int memberId) {
+        // Backward-compatible entry point: pick the first available copy.
+        Connection conn = DatabaseConnection.getConnection();
+        try {
+            PreparedStatement pick = conn.prepareStatement("""
+                SELECT id, accession_number
+                FROM book_copies
+                WHERE book_id = ? AND status = 'AVAILABLE'
+                ORDER BY accession_number ASC
+                LIMIT 1
+            """);
+            pick.setInt(1, bookId);
+            ResultSet rs = pick.executeQuery();
+            if (!rs.next()) {
+                System.err.println("No available copy found.");
+                return false;
+            }
+            return issueBook(
+                bookId,
+                memberId,
+                rs.getInt("id"),
+                rs.getString("accession_number")
+            );
+        } catch (SQLException e) {
+            System.err.println("Issue failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean issueBook(int bookId, int memberId,
+                             int bookCopyId, String accessionNumber) {
         Connection conn = DatabaseConnection.getConnection();
         try {
             // ── Check book is available ───────────────────────────────
@@ -51,20 +81,26 @@ public class IssueService {
             // ── Insert issue record ───────────────────────────────────
             PreparedStatement insert = conn.prepareStatement("""
                 INSERT INTO issue_records
-                    (book_id, member_id, issue_date, due_date, status)
-                VALUES (?, ?, ?, ?, 'ISSUED')
+                    (book_id, book_copy_id, member_id, accession_number,
+                     issue_date, due_date, status)
+                VALUES (?, ?, ?, ?, ?, ?, 'ISSUED')
             """);
             insert.setInt(1, bookId);
-            insert.setInt(2, memberId);
-            insert.setString(3, today.toString());
-            insert.setString(4, dueDate.toString());
+            insert.setInt(2, bookCopyId);
+            insert.setInt(3, memberId);
+            insert.setString(4, accessionNumber);
+            insert.setString(5, today.toString());
+            insert.setString(6, dueDate.toString());
             insert.executeUpdate();
 
+            // Mark selected copy issued
+            PreparedStatement updateCopy = conn.prepareStatement(
+                "UPDATE book_copies SET status = 'ISSUED' WHERE id = ?"
+            );
+            updateCopy.setInt(1, bookCopyId);
+            updateCopy.executeUpdate();
+
             // ── Decrease available copies ─────────────────────────────
-            conn.prepareStatement("""
-                UPDATE books SET available_copies = available_copies - 1
-                WHERE id = ?
-            """).setInt(1, bookId);
             PreparedStatement updateBook = conn.prepareStatement(
                 "UPDATE books SET available_copies = available_copies - 1 WHERE id = ?"
             );
@@ -86,7 +122,7 @@ public class IssueService {
         try {
             // Get issue record
             PreparedStatement get = conn.prepareStatement("""
-                SELECT book_id, due_date FROM issue_records
+                SELECT book_id, book_copy_id, due_date FROM issue_records
                 WHERE id = ? AND status = 'ISSUED'
             """);
             get.setInt(1, issueId);
@@ -98,6 +134,7 @@ public class IssueService {
             }
 
             int       bookId   = rs.getInt("book_id");
+            int       copyId   = rs.getInt("book_copy_id");
             LocalDate dueDate  = LocalDate.parse(rs.getString("due_date"));
             LocalDate today    = LocalDate.now();
 
@@ -118,6 +155,14 @@ public class IssueService {
             update.setDouble(2, fine);
             update.setInt(3, issueId);
             update.executeUpdate();
+
+            if (copyId > 0) {
+                PreparedStatement updateCopy = conn.prepareStatement(
+                    "UPDATE book_copies SET status = 'AVAILABLE' WHERE id = ?"
+                );
+                updateCopy.setInt(1, copyId);
+                updateCopy.executeUpdate();
+            }
 
             // ── Increase available copies ─────────────────────────────
             PreparedStatement updateBook = conn.prepareStatement(

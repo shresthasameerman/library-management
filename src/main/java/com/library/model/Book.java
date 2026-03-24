@@ -113,6 +113,26 @@ public class Book {
     public void setNumberOfPages(int v)             { numberOfPages.set(v); }
     public IntegerProperty numberOfPagesProperty()  { return numberOfPages; }
 
+    // Returns accession display range, e.g. "100 -> 109".
+    public String getAccessionRange() {
+        String acc    = getAccessionNumber();
+        int    copies = getTotalCopies();
+        if (acc == null || acc.isBlank() || copies <= 1) return acc;
+
+        try {
+            String numericPart = acc.replaceAll("[^0-9]", "");
+            String prefix      = acc.replaceAll("[0-9]", "");
+            if (numericPart.isEmpty()) return acc;
+
+            int startNum = Integer.parseInt(numericPart);
+            int endNum   = startNum + copies - 1;
+            return prefix + startNum + " -> " + prefix + endNum;
+        } catch (NumberFormatException e) {
+            return acc;
+        }
+    }
+
+    
     @Override
     public String toString() {
         return title.get() + " by " + author.get();

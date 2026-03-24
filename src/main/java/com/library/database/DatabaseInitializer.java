@@ -60,20 +60,35 @@ public class DatabaseInitializer {
                 )
             """);
 
+            // ── Book Copies table ────────────────────────────────────
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS book_copies (
+                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                    book_id          INTEGER NOT NULL,
+                    accession_number TEXT UNIQUE NOT NULL,
+                    status           TEXT DEFAULT 'AVAILABLE'
+                                     CHECK(status IN ('AVAILABLE','ISSUED','LOST')),
+                    FOREIGN KEY(book_id) REFERENCES books(id)
+                )
+            """);
+
             // ── Issue Records table ───────────────────────────────────
             stmt.execute("""
                 CREATE TABLE IF NOT EXISTS issue_records (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    book_id     INTEGER NOT NULL,
-                    member_id   INTEGER NOT NULL,
-                    issue_date  DATE NOT NULL,
-                    due_date    DATE NOT NULL,
-                    return_date DATE,
-                    fine_amount REAL DEFAULT 0,
-                    status      TEXT DEFAULT 'ISSUED'
-                                CHECK(status IN ('ISSUED','RETURNED','OVERDUE')),
-                    FOREIGN KEY(book_id)   REFERENCES books(id),
-                    FOREIGN KEY(member_id) REFERENCES members(id)
+                    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                    book_id          INTEGER NOT NULL,
+                    book_copy_id     INTEGER,
+                    member_id        INTEGER NOT NULL,
+                    accession_number TEXT,
+                    issue_date       DATE NOT NULL,
+                    due_date         DATE NOT NULL,
+                    return_date      DATE,
+                    fine_amount      REAL DEFAULT 0,
+                    status           TEXT DEFAULT 'ISSUED'
+                                     CHECK(status IN ('ISSUED','RETURNED','OVERDUE')),
+                    FOREIGN KEY(book_id)      REFERENCES books(id),
+                    FOREIGN KEY(book_copy_id) REFERENCES book_copies(id),
+                    FOREIGN KEY(member_id)    REFERENCES members(id)
                 )
             """);
 
@@ -109,6 +124,18 @@ public class DatabaseInitializer {
             };
 
             for (String sql : bookColumns) {
+                try {
+                    stmt.execute(sql);
+                } catch (SQLException ignored) {}
+            }
+
+            // Issue records — new columns
+            String[] issueColumns = {
+                "ALTER TABLE issue_records ADD COLUMN book_copy_id INTEGER",
+                "ALTER TABLE issue_records ADD COLUMN accession_number TEXT"
+            };
+
+            for (String sql : issueColumns) {
                 try {
                     stmt.execute(sql);
                 } catch (SQLException ignored) {}

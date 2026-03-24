@@ -1,6 +1,8 @@
 package com.library.controller;
 
 import com.library.model.Book;
+import com.library.model.BookCopyDetail;
+import com.library.service.BookCopyService;
 import com.library.service.BookService;
 import com.library.util.AlertHelper;
 import com.library.util.QRCodeUtil;
@@ -23,19 +25,17 @@ import javafx.stage.Window;
 
 import java.net.URL;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
 public class BookController implements Initializable {
-
     @FXML private TableView<Book>           booksTable;
     @FXML private TableColumn<Book,Integer> colId;
-    @FXML private TableColumn<Book,String>  colAccession;
     @FXML private TableColumn<Book,String>  colTitle;
     @FXML private TableColumn<Book,String>  colAuthor;
     @FXML private TableColumn<Book,String>  colClassification;
-    @FXML private TableColumn<Book,String>  colCategory;
     @FXML private TableColumn<Book,Integer> colTotal;
     @FXML private TableColumn<Book,Integer> colAvailable;
     @FXML private TableColumn<Book,Void>    colActions;
@@ -44,6 +44,7 @@ public class BookController implements Initializable {
     @FXML private Label                     statusLabel;
 
     private final BookService          bookService = new BookService();
+    private final BookCopyService      copyService = new BookCopyService();
     private final ObservableList<Book> bookList    =
         FXCollections.observableArrayList();
 
@@ -57,14 +58,30 @@ public class BookController implements Initializable {
     // ── Table Setup ───────────────────────────────────────────────────
     private void setupTableColumns() {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colAccession.setCellValueFactory(
-            new PropertyValueFactory<>("accessionNumber"));
         colTitle.setCellValueFactory(new PropertyValueFactory<>("title"));
+        colTitle.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null) {
+                    setText(null);
+                    setGraphic(null);
+                    return;
+                }
+
+                Hyperlink link = new Hyperlink(value);
+                link.setStyle("-fx-text-fill: #4361ee; -fx-font-weight: bold;");
+                link.setOnAction(e -> {
+                    Book b = getTableView().getItems().get(getIndex());
+                    showBookDetails(b);
+                });
+                setGraphic(link);
+                setText(null);
+            }
+        });
         colAuthor.setCellValueFactory(new PropertyValueFactory<>("author"));
         colClassification.setCellValueFactory(
             new PropertyValueFactory<>("classificationNumber"));
-        colCategory.setCellValueFactory(
-            new PropertyValueFactory<>("category"));
         colTotal.setCellValueFactory(
             new PropertyValueFactory<>("totalCopies"));
 
@@ -164,6 +181,109 @@ public class BookController implements Initializable {
         }
     }
 
+    private void showBookDetails(Book book) {
+        Label titleLabel = new Label(book.getTitle());
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #1a1a2e;");
+
+        Label authorChip = new Label("Author: " + safe(book.getAuthor()));
+        authorChip.setStyle(
+            "-fx-background-color: #eef2ff; -fx-text-fill: #334155;" +
+            "-fx-padding: 6 10; -fx-background-radius: 8; -fx-font-size: 12px;"
+        );
+
+        Label classChip = new Label(
+            "Class No: " + safe(book.getClassificationNumber())
+        );
+        classChip.setStyle(
+            "-fx-background-color: #eef2ff; -fx-text-fill: #334155;" +
+            "-fx-padding: 6 10; -fx-background-radius: 8; -fx-font-size: 12px;"
+        );
+
+        Label totalChip = new Label("Total: " + book.getTotalCopies());
+        totalChip.setStyle(
+            "-fx-background-color: #eef2ff; -fx-text-fill: #334155;" +
+            "-fx-padding: 6 10; -fx-background-radius: 8; -fx-font-size: 12px;"
+        );
+
+        Label availableChip = new Label("Available: " + book.getAvailableCopies());
+        availableChip.setStyle(
+            "-fx-background-color: #e8f9ef; -fx-text-fill: #1f7a3d;" +
+            "-fx-padding: 6 10; -fx-background-radius: 8;" +
+            "-fx-font-size: 12px; -fx-font-weight: bold;"
+        );
+
+        FlowPane infoRow = new FlowPane(10, 8,
+            authorChip, classChip, totalChip, availableChip
+        );
+        infoRow.setPrefWrapLength(700);
+
+        TableView<BookCopyDetail> copyTable = new TableView<>();
+        copyTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<BookCopyDetail, String> accCol = new TableColumn<>("Accession No.");
+        accCol.setCellValueFactory(new PropertyValueFactory<>("accessionNumber"));
+
+        TableColumn<BookCopyDetail, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null) {
+                    setText(null);
+                    setStyle("");
+                    return;
+                }
+                setText(value);
+                if ("ISSUED".equals(value)) {
+                    setStyle("-fx-text-fill: #e63946; -fx-font-weight: bold;");
+                } else {
+                    setStyle("-fx-text-fill: #2dc653; -fx-font-weight: bold;");
+                }
+            }
+        });
+
+        TableColumn<BookCopyDetail, String> issuedToCol = new TableColumn<>("Issued To");
+        issuedToCol.setCellValueFactory(new PropertyValueFactory<>("issuedTo"));
+
+        TableColumn<BookCopyDetail, String> dueDateCol = new TableColumn<>("Return Date");
+        dueDateCol.setCellValueFactory(new PropertyValueFactory<>("dueDate"));
+
+        copyTable.getColumns().addAll(accCol, statusCol, issuedToCol, dueDateCol);
+        copyTable.setItems(FXCollections.observableArrayList(
+            copyService.getCopyDetailsForBook(book.getId())
+        ));
+
+        Label sheetTitle = new Label("Copy Availability Sheet");
+        sheetTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #4361ee;");
+
+        Button closeBtn = new Button("Close");
+        closeBtn.setStyle(
+            "-fx-background-color: #eef1fb; -fx-font-size: 13px;" +
+            "-fx-background-radius: 8; -fx-cursor: hand;"
+        );
+
+        VBox root = new VBox(12, titleLabel, infoRow, sheetTitle, copyTable, closeBtn);
+        root.setPadding(new Insets(18));
+        root.setStyle("-fx-background-color: white;");
+
+        Stage dialog = new Stage();
+        dialog.setTitle("Book Details");
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
+        dialog.setScene(new Scene(root, 760, 520));
+        dialog.setMinWidth(720);
+        dialog.setMinHeight(480);
+
+        closeBtn.setOnAction(e -> dialog.close());
+        dialog.showAndWait();
+    }
+
+    private String safe(String s) {
+        return (s == null || s.isBlank()) ? "-" : s;
+    }
+
     @FXML
     private void handleClearSearch() {
         searchField.clear();
@@ -203,18 +323,36 @@ public class BookController implements Initializable {
 
     // ── QR Code Viewer ────────────────────────────────────────────────
     private void showQRCode(Book book) {
+        String rangeStr;
+        int copies = book.getTotalCopies();
+        String acc = book.getAccessionNumber();
+        if (copies > 1 && acc != null && !acc.isBlank()) {
+            try {
+                String numericPart = acc.replaceAll("[^0-9]", "");
+                String prefix      = acc.replaceAll("[0-9]", "");
+                int    start       = Integer.parseInt(numericPart);
+                int    end         = start + copies - 1;
+                rangeStr = prefix + start + " → " + prefix + end +
+                           " (" + copies + " copies)";
+            } catch (NumberFormatException e) {
+                rangeStr = acc;
+            }
+        } else {
+            rangeStr = acc != null ? acc : "—";
+        }
+
         String content = QRCodeUtil.buildQRContent(
             book.getAccessionNumber(),
             book.getTitle(),
             book.getAuthor(),
             book.getClassificationNumber(),
             book.getId()
-        );
+        ) + "\nRange: " + rangeStr
+          + "\nCopies: " + copies;
 
         Image qrImage = QRCodeUtil.generateQRImage(content);
         if (qrImage == null) {
-            AlertHelper.showError("QR Error",
-                "Failed to generate QR code.");
+            AlertHelper.showError("QR Error", "Failed to generate QR code.");
             return;
         }
 
@@ -223,7 +361,6 @@ public class BookController implements Initializable {
         imageView.setFitHeight(250);
         imageView.setSmooth(true);
 
-        // Book info
         Label titleLbl = new Label(book.getTitle());
         titleLbl.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;" +
                           "-fx-text-fill: #1a1a2e;");
@@ -231,13 +368,17 @@ public class BookController implements Initializable {
         titleLbl.setMaxWidth(280);
 
         Label infoLbl = new Label(
-            "Accession: " + book.getAccessionNumber() + "\n" +
-            "Class No:  " + book.getClassificationNumber() + "\n" +
-            "Cutter:    " + book.getCutterNumber()
+            "Accession : " + acc + "\n" +
+            "Range     : " + rangeStr + "\n" +
+            "Class No  : " + book.getClassificationNumber() + "\n" +
+            "Cutter    : " + book.getCutterNumber() + "\n" +
+            "Edition   : " + book.getEdition() + "\n" +
+            "Copies    : " + copies
         );
-        infoLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #555555;");
+        infoLbl.setStyle(
+            "-fx-font-size: 12px; -fx-text-fill: #333333;" +
+            "-fx-font-family: monospace;");
 
-        // Buttons
         Button saveBtn = new Button("💾  Save QR as PNG");
         saveBtn.setStyle(
             "-fx-background-color: #4361ee; -fx-text-fill: white;" +
@@ -268,14 +409,11 @@ public class BookController implements Initializable {
 
         saveBtn.setOnAction(e -> {
             String path = QRCodeUtil.saveQRCode(
-                content, book.getAccessionNumber()
-            );
+                content, book.getAccessionNumber());
             if (path != null) {
-                AlertHelper.showSuccess("QR Saved!",
-                    "Saved to:\n" + path);
+                AlertHelper.showSuccess("QR Saved!", "Saved to:\n" + path);
             } else {
-                AlertHelper.showError("Save Failed",
-                    "Could not save QR code.");
+                AlertHelper.showError("Save Failed", "Could not save QR.");
             }
         });
 
@@ -286,9 +424,9 @@ public class BookController implements Initializable {
     // ── Book Form (Add / Edit) ────────────────────────────────────────
     private void openBookForm(Book existing) {
         boolean isEdit = existing != null;
+        BookCopyService copyService = new BookCopyService();
 
         // ── Fields ───────────────────────────────────────────────────
-        TextField accessionField      = field("e.g. TBC-2024-001");
         TextField titleField          = field("e.g. Introduction to Algorithms");
         TextField authorField         = field("e.g. Thomas H. Cormen");
         TextField isbnField           = field("e.g. 978-0262033848");
@@ -300,7 +438,6 @@ public class BookController implements Initializable {
         TextField yearField           = field("e.g. " + LocalDate.now().getYear());
         TextField pagesField          = field("e.g. 1292");
         ComboBox<String> catBox       = new ComboBox<>();
-        Spinner<Integer> copiesSpinner = new Spinner<>(1, 999, 1);
         Label errorLabel              = new Label();
 
         catBox.setItems(FXCollections.observableArrayList(
@@ -311,17 +448,180 @@ public class BookController implements Initializable {
         catBox.setPrefWidth(Double.MAX_VALUE);
         catBox.setPrefHeight(36);
 
-        copiesSpinner.setEditable(true);
-        copiesSpinner.setPrefWidth(Double.MAX_VALUE);
-        copiesSpinner.setPrefHeight(36);
-
         errorLabel.setStyle(
             "-fx-text-fill: #e63946; -fx-font-size: 12px;");
         errorLabel.setWrapText(true);
 
+        // ── Accession Number List ─────────────────────────────────────
+        // Each copy gets its own accession number entered in a list
+        ObservableList<String> accessionList =
+            FXCollections.observableArrayList();
+
+        // Pre-load existing copies if editing
+        if (isEdit) {
+            copyService.getCopiesForBook(existing.getId())
+                .forEach(c -> accessionList.add(
+                    c.getAccessionNumber() + " [" + c.getStatus() + "]"
+                ));
+        }
+
+        ListView<String> accessionListView = new ListView<>(accessionList);
+        accessionListView.setPrefHeight(120);
+        accessionListView.setStyle(
+            "-fx-background-color: #f8f9fa;" +
+            "-fx-border-color: #e2e8f0; -fx-border-radius: 6;");
+
+        TextField newAccessionField = field("Enter starting accession number");
+        newAccessionField.setPrefWidth(200);
+
+        Spinner<Integer> copyCountSpinner = new Spinner<>(1, 999, 1);
+        copyCountSpinner.setEditable(true);
+        copyCountSpinner.setPrefHeight(36);
+        copyCountSpinner.setPrefWidth(120);
+
+        Button addAccBtn = new Button("⚡ Generate");
+        addAccBtn.setStyle(
+            "-fx-background-color: #4361ee; -fx-text-fill: white;" +
+            "-fx-font-weight: bold; -fx-background-radius: 6;" +
+            "-fx-cursor: hand; -fx-padding: 6 14 6 14;");
+
+        Button removeAccBtn = new Button("🗑 Remove");
+        removeAccBtn.setStyle(
+            "-fx-background-color: #e63946; -fx-text-fill: white;" +
+            "-fx-font-weight: bold; -fx-background-radius: 6;" +
+            "-fx-cursor: hand; -fx-padding: 6 14 6 14;");
+
+        Label accStatusLabel = new Label();
+        accStatusLabel.setStyle(
+            "-fx-font-size: 11px; -fx-text-fill: #a0aec0;");
+
+        // Add accession number to list
+        addAccBtn.setOnAction(e -> {
+            String startAcc = newAccessionField.getText().trim();
+            int count = copyCountSpinner.getValue();
+
+            if (startAcc.isEmpty()) {
+                accStatusLabel.setText("⚠ Enter a starting accession number.");
+                accStatusLabel.setStyle(
+                    "-fx-font-size: 11px; -fx-text-fill: #e63946;");
+                return;
+            }
+
+            List<String> generated = new ArrayList<>();
+            String numericPart = startAcc.replaceAll("[^0-9]", "");
+            String prefix = startAcc.replaceAll("[0-9]", "");
+
+            if (count > 1 && numericPart.isEmpty()) {
+                accStatusLabel.setText(
+                    "⚠ Starting accession must contain a number for multiple copies.");
+                accStatusLabel.setStyle(
+                    "-fx-font-size: 11px; -fx-text-fill: #e63946;");
+                return;
+            }
+
+            if (numericPart.isEmpty()) {
+                generated.add(startAcc);
+            } else {
+                int startNum;
+                try {
+                    startNum = Integer.parseInt(numericPart);
+                } catch (NumberFormatException ex) {
+                    accStatusLabel.setText("⚠ Invalid accession number.");
+                    accStatusLabel.setStyle(
+                        "-fx-font-size: 11px; -fx-text-fill: #e63946;");
+                    return;
+                }
+
+                int width = numericPart.length();
+                for (int i = 0; i < count; i++) {
+                    int n = startNum + i;
+                    generated.add(prefix + String.format("%0" + width + "d", n));
+                }
+            }
+
+            // Check duplicates in list and DB before adding anything
+            for (String acc : generated) {
+                boolean dupInList = accessionList.stream().anyMatch(item -> {
+                    String clean = item.contains(" [")
+                        ? item.substring(0, item.indexOf(" [")).trim()
+                        : item.trim();
+                    return clean.equals(acc);
+                });
+                if (dupInList) {
+                    accStatusLabel.setText("⚠ " + acc + " already in list.");
+                    accStatusLabel.setStyle(
+                        "-fx-font-size: 11px; -fx-text-fill: #e63946;");
+                    return;
+                }
+
+                if (copyService.accessionExists(acc, 0)) {
+                    accStatusLabel.setText("⚠ " + acc + " already exists in DB.");
+                    accStatusLabel.setStyle(
+                        "-fx-font-size: 11px; -fx-text-fill: #e63946;");
+                    return;
+                }
+            }
+
+            accessionList.addAll(generated);
+            newAccessionField.clear();
+            accStatusLabel.setText(
+                "✓ Added " + generated.size() + " copies. Total: " +
+                accessionList.size() + " copies.");
+            accStatusLabel.setStyle(
+                "-fx-font-size: 11px; -fx-text-fill: #2dc653;");
+        });
+
+        // Allow pressing Enter to add
+        newAccessionField.setOnAction(e -> addAccBtn.fire());
+
+        // Remove selected
+        removeAccBtn.setOnAction(e -> {
+            String selected = accessionListView.getSelectionModel()
+                .getSelectedItem();
+            if (selected != null) {
+                // Don't allow removing ISSUED copies
+                if (selected.contains("[ISSUED]")) {
+                    accStatusLabel.setText("⚠ Cannot remove - copy is issued.");
+                    accStatusLabel.setStyle(
+                        "-fx-font-size: 11px; -fx-text-fill: #e63946;");
+                    return;
+                }
+                accessionList.remove(selected);
+                accStatusLabel.setText(
+                    "Total: " + accessionList.size() + " copies.");
+                accStatusLabel.setStyle(
+                    "-fx-font-size: 11px; -fx-text-fill: #a0aec0;");
+            }
+        });
+
+        Label startAccLabel = new Label("Starting Accession Number *");
+        startAccLabel.setStyle(
+            "-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #4a5568;");
+
+        VBox startAccBox = new VBox(4, startAccLabel, newAccessionField);
+
+        Label copyCountLabel = new Label("Number of Copies *");
+        copyCountLabel.setStyle(
+            "-fx-font-weight: bold; -fx-font-size: 11px; -fx-text-fill: #4a5568;");
+
+        VBox copyCountBox = new VBox(4, copyCountLabel, copyCountSpinner);
+
+        HBox actionRow = new HBox(8, addAccBtn, removeAccBtn);
+
+        VBox accessionBox = new VBox(6,
+            new Label("Accession Numbers *") {{
+                setStyle("-fx-font-weight: bold; -fx-font-size: 12px;" +
+                         "-fx-text-fill: #333;");
+            }},
+            accessionListView,
+            startAccBox,
+            copyCountBox,
+            actionRow,
+            accStatusLabel
+        );
+
         // Pre-fill if editing
         if (isEdit) {
-            accessionField.setText(existing.getAccessionNumber());
             titleField.setText(existing.getTitle());
             authorField.setText(existing.getAuthor());
             isbnField.setText(existing.getIsbn());
@@ -335,46 +635,40 @@ public class BookController implements Initializable {
             if (existing.getNumberOfPages() > 0)
                 pagesField.setText(String.valueOf(existing.getNumberOfPages()));
             catBox.setValue(existing.getCategory());
-            copiesSpinner.getValueFactory().setValue(existing.getTotalCopies());
         }
 
         String lblStyle =
             "-fx-font-weight: bold; -fx-font-size: 12px; -fx-text-fill: #333;";
 
-        // ── Two-column layout ─────────────────────────────────────────
-        // Left column
+        // ── Left column ───────────────────────────────────────────────
         VBox leftCol = new VBox(10,
-            lbl("Accession No. *", lblStyle),  accessionField,
-            lbl("Title *",         lblStyle),  titleField,
-            lbl("Author *",        lblStyle),  authorField,
-            lbl("ISBN",            lblStyle),  isbnField,
-            lbl("Category",        lblStyle),  catBox,
-            lbl("No. of Copies *", lblStyle),  copiesSpinner
+            accessionBox,
+            lbl("Title *",   lblStyle), titleField,
+            lbl("Author *",  lblStyle), authorField,
+            lbl("ISBN",      lblStyle), isbnField,
+            lbl("Category",  lblStyle), catBox
         );
-        leftCol.setPrefWidth(260);
+        leftCol.setPrefWidth(280);
 
-        // Right column
+        // ── Right column ──────────────────────────────────────────────
         VBox rightCol = new VBox(10,
-            lbl("Classification No.", lblStyle), classificationField,
-            lbl("Cutter Number",      lblStyle), cutterField,
-            lbl("Edition",            lblStyle), editionField,
-            lbl("Publisher",          lblStyle), publisherField,
+            lbl("Classification No.",   lblStyle), classificationField,
+            lbl("Cutter Number",        lblStyle), cutterField,
+            lbl("Edition",              lblStyle), editionField,
+            lbl("Publisher",            lblStyle), publisherField,
             lbl("Place of Publication", lblStyle), placeField,
-            lbl("Year of Publication", lblStyle), yearField,
-            lbl("Number of Pages",    lblStyle), pagesField
+            lbl("Year of Publication",  lblStyle), yearField,
+            lbl("Number of Pages",      lblStyle), pagesField
         );
         rightCol.setPrefWidth(260);
 
         HBox columns = new HBox(20, leftCol, rightCol);
         columns.setPadding(new Insets(20, 24, 10, 24));
 
-        // Section headers
-        Label leftHeader = sectionHeader("📚 Basic Information");
-        Label rightHeader = sectionHeader("🔖 Classification & Publication");
-
+        // ── Section headers ───────────────────────────────────────────
         HBox headers = new HBox(20,
-            withWidth(leftHeader, 260),
-            withWidth(rightHeader, 260)
+            withWidth(sectionHeader("📚 Basic Information"),  280),
+            withWidth(sectionHeader("🔖 Classification & Publication"), 260)
         );
         headers.setPadding(new Insets(20, 24, 0, 24));
 
@@ -402,23 +696,21 @@ public class BookController implements Initializable {
             withPadding(errorLabel, new Insets(0, 24, 0, 24)), btnBox);
         root.setStyle("-fx-background-color: white;");
 
-        // ── Dialog ────────────────────────────────────────────────────
         Stage dialog = new Stage();
         dialog.setTitle(isEdit ? "Edit Book" : "Add New Book");
         dialog.initModality(Modality.APPLICATION_MODAL);
         dialog.initOwner(Window.getWindows().stream()
             .filter(Window::isShowing).findFirst().orElse(null));
         dialog.setScene(new Scene(root));
-        dialog.setMinWidth(580);
-        dialog.setResizable(false);
+        dialog.setMinWidth(920);
+        dialog.setMinHeight(700);
+        dialog.setResizable(true);
 
         cancelBtn.setOnAction(e -> dialog.close());
 
         saveBtn.setOnAction(e -> {
             errorLabel.setText("");
 
-            // ── Collect values ────────────────────────────────────────
-            String accession = accessionField.getText().trim();
             String title     = titleField.getText().trim();
             String author    = authorField.getText().trim();
             String isbn      = isbnField.getText().trim();
@@ -430,30 +722,26 @@ public class BookController implements Initializable {
             String yearStr   = yearField.getText().trim();
             String pagesStr  = pagesField.getText().trim();
             String category  = catBox.getValue();
-            int    copies    = copiesSpinner.getValue();
 
-            // ── Validation ────────────────────────────────────────────
-            if (accession.isEmpty()) {
-                errorLabel.setText("⚠ Accession Number is required.");
-                return;
+            // Collect NEW accession numbers (not already in DB)
+            List<String> newAccessions = new ArrayList<>();
+            for (String item : accessionList) {
+                // Skip items that are already in DB (show as "ACC [STATUS]")
+                if (!item.contains(" [")) {
+                    newAccessions.add(item.trim());
+                }
             }
+
+            // Validation
             if (title.isEmpty()) {
-                errorLabel.setText("⚠ Title is required.");
-                return;
+                errorLabel.setText("⚠ Title is required."); return;
             }
             if (author.isEmpty()) {
-                errorLabel.setText("⚠ Author is required.");
-                return;
+                errorLabel.setText("⚠ Author is required."); return;
             }
-            if (bookService.accessionExists(accession,
-                    isEdit ? existing.getId() : 0)) {
+            if (!isEdit && accessionList.isEmpty()) {
                 errorLabel.setText(
-                    "⚠ Accession Number already exists. Must be unique.");
-                return;
-            }
-            if (!isbn.isEmpty() && bookService.isbnExists(isbn,
-                    isEdit ? existing.getId() : 0)) {
-                errorLabel.setText("⚠ This ISBN already exists.");
+                    "⚠ Add at least one accession number.");
                 return;
             }
 
@@ -464,9 +752,7 @@ public class BookController implements Initializable {
                     year = Integer.parseInt(yearStr);
                     int currentYear = LocalDate.now().getYear();
                     if (year < 1000 || year > currentYear + 1) {
-                        errorLabel.setText(
-                            "⚠ Enter a valid year (1000–" +
-                            (currentYear + 1) + ").");
+                        errorLabel.setText("⚠ Enter a valid year.");
                         return;
                     }
                 } catch (NumberFormatException ex) {
@@ -481,7 +767,7 @@ public class BookController implements Initializable {
                 try {
                     pages = Integer.parseInt(pagesStr);
                     if (pages <= 0) {
-                        errorLabel.setText("⚠ Pages must be greater than 0.");
+                        errorLabel.setText("⚠ Pages must be > 0.");
                         return;
                     }
                 } catch (NumberFormatException ex) {
@@ -490,12 +776,25 @@ public class BookController implements Initializable {
                 }
             }
 
+            if (!isbn.isEmpty() && bookService.isbnExists(isbn,
+                    isEdit ? existing.getId() : 0)) {
+                errorLabel.setText("⚠ This ISBN already exists.");
+                return;
+            }
+
+            // Use first accession as book's main accession
+            String mainAccession = accessionList.isEmpty() ? ""
+                : accessionList.get(0).replace(" [AVAILABLE]", "")
+                               .replace(" [ISSUED]", "")
+                               .replace(" [LOST]", "").trim();
+
             Book book = new Book(
                 isEdit ? existing.getId() : 0,
                 title, author, isbn,
                 category != null ? category : "Other",
-                copies, copies,
-                accession, classNo, cutter, edition,
+                accessionList.size(),
+                accessionList.size(),
+                mainAccession, classNo, cutter, edition,
                 publisher, place, year, pages
             );
 
@@ -504,11 +803,20 @@ public class BookController implements Initializable {
                 : bookService.addBook(book);
 
             if (success) {
+                int bookId = isEdit ? existing.getId()
+                    : bookService.getLastInsertedId();
+
+                // Save new copies to book_copies table
+                if (!newAccessions.isEmpty()) {
+                    copyService.addCopies(bookId, newAccessions);
+                }
+
                 dialog.close();
                 loadBooks();
                 AlertHelper.showSuccess("Success",
-                    isEdit ? "Book updated successfully!"
-                           : "\"" + title + "\" added!");
+                    isEdit ? "Book updated!"
+                           : "\"" + title + "\" added with " +
+                             accessionList.size() + " copies!");
             } else {
                 errorLabel.setText("⚠ Failed to save. Try again.");
             }

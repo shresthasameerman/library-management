@@ -4,6 +4,7 @@ import com.library.database.DatabaseConnection;
 import com.library.model.Member;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,16 +21,37 @@ public class MemberService {
         "Staff"
     };
 
-    // ── Intake Sessions ───────────────────────────────────────────────
-    public static final String[] INTAKES = {
-        "Spring 2024",
-        "Fall 2024",
-        "Spring 2025",
-        "Fall 2025",
-        "Spring 2026",
-        "Fall 2026",
-        "N/A (Staff)"
-    };
+    // ── Intake Sessions (dynamic, auto-updating) ─────────────────────
+    public static final String[] INTAKES = buildIntakes();
+
+    private static String[] buildIntakes() {
+        List<String> intakes = new ArrayList<>();
+
+        int startYear = 2021;
+        LocalDate now = LocalDate.now();
+        int currentYear = now.getYear();
+        int currentMonth = now.getMonthValue();
+
+        // Past years: include both Jan/Feb and Sept/Oct intakes.
+        for (int year = startYear; year < currentYear; year++) {
+            intakes.add("Jan/Feb " + year);
+            intakes.add("Sept/Oct " + year);
+        }
+
+        // Current year: Jan/Feb always visible, Sept/Oct visible from August onward.
+        intakes.add("Jan/Feb " + currentYear);
+        if (currentMonth >= 8) {
+            intakes.add("Sept/Oct " + currentYear);
+        }
+
+        // December: show next year's Jan/Feb intake in advance.
+        if (currentMonth == 12) {
+            intakes.add("Jan/Feb " + (currentYear + 1));
+        }
+
+        intakes.add("N/A (Staff)");
+        return intakes.toArray(new String[0]);
+    }
 
     // ── Add New Member ────────────────────────────────────────────────
     public boolean addMember(Member member) {

@@ -101,6 +101,18 @@
                                    style="-fx-text-fill: #4361ee;
                                           -fx-font-size: 12px;
                                           -fx-font-weight: bold;"/>
+
+                            <!-- Copy Selection -->
+                            <ComboBox fx:id="copyComboBox"
+                                      promptText="Select copy (accession number)"
+                                      prefWidth="999"
+                                      prefHeight="36"
+                                      visible="false"
+                                      style="-fx-background-color: #eef1fb;
+                                             -fx-border-color: #4361ee;
+                                             -fx-border-radius: 6;
+                                             -fx-font-size: 13px;"/>
+
                         </VBox>
 
                         <!-- Due Date Info -->

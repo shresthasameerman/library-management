@@ -18,9 +18,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import javafx.util.StringConverter;
 
-import java.awt.Desktop;
-import java.io.File;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -253,6 +252,35 @@ public class DashboardController implements Initializable {
             monthlyBarChart.setBarGap(3);
             monthlyBarChart.setCategoryGap(20);
 
+            // Show Y-axis in whole numbers only: 0,1,2,3...
+            NumberAxis yAxis = (NumberAxis) monthlyBarChart.getYAxis();
+            int maxIssued = issueSeries.getData().stream()
+                .mapToInt(d -> d.getYValue().intValue())
+                .max().orElse(0);
+            int maxReturned = returnSeries.getData().stream()
+                .mapToInt(d -> d.getYValue().intValue())
+                .max().orElse(0);
+            int upperBound = Math.max(1, Math.max(maxIssued, maxReturned));
+
+            yAxis.setAutoRanging(false);
+            yAxis.setLowerBound(0);
+            yAxis.setUpperBound(upperBound);
+            yAxis.setTickUnit(1);
+            yAxis.setMinorTickVisible(false);
+            yAxis.setMinorTickCount(0);
+            yAxis.setForceZeroInRange(true);
+            yAxis.setTickLabelFormatter(new StringConverter<>() {
+                @Override
+                public String toString(Number n) {
+                    return String.valueOf(n.intValue());
+                }
+
+                @Override
+                public Number fromString(String s) {
+                    return Integer.parseInt(s);
+                }
+            });
+
         } catch (Exception e) {
             System.err.println("Monthly chart error: " + e.getMessage());
         }
@@ -379,13 +407,7 @@ public class DashboardController implements Initializable {
         }
         if (reportPathLabel != null)
             reportPathLabel.setText("📁 " + filePath);
-
-        try {
-            if (Desktop.isDesktopSupported())
-                Desktop.getDesktop().open(new File(filePath));
-        } catch (Exception e) {
-            System.out.println("Saved: " + filePath);
-        }
+        System.out.println("Report generated: " + name + " -> " + filePath);
 
         new Thread(() -> {
             try {

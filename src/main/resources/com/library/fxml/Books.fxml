@@ -48,23 +48,19 @@
                styleClass="table-view">
         <columns>
             <TableColumn fx:id="colId"
-                         text="ID" prefWidth="45"/>
-            <TableColumn fx:id="colAccession"
-                         text="Accession No." prefWidth="120"/>
+                        text="ID" prefWidth="45"/>
             <TableColumn fx:id="colTitle"
-                         text="Title" prefWidth="200"/>
+                        text="Book Title" prefWidth="260"/>
             <TableColumn fx:id="colAuthor"
-                         text="Author" prefWidth="140"/>
+                        text="Author" prefWidth="180"/>
             <TableColumn fx:id="colClassification"
-                         text="Class No." prefWidth="100"/>
-            <TableColumn fx:id="colCategory"
-                         text="Category" prefWidth="100"/>
+                        text="Classification No." prefWidth="160"/>
             <TableColumn fx:id="colTotal"
-                         text="Total" prefWidth="55"/>
+                        text="Total Books" prefWidth="110"/>
             <TableColumn fx:id="colAvailable"
-                         text="Avail." prefWidth="55"/>
+                        text="Available Books" prefWidth="120"/>
             <TableColumn fx:id="colActions"
-                         text="Actions" prefWidth="180"/>
+                        text="Actions" prefWidth="150"/>
         </columns>
         <placeholder>
             <Label text="No books found. Click '➕ Add New Book' to get started."
