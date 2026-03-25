@@ -3,6 +3,7 @@ package com.library.service;
 import com.library.database.DatabaseConnection;
 import com.library.model.BookCopy;
 import com.library.model.BookCopyDetail;
+import com.library.util.BranchScope;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -14,12 +15,14 @@ public class BookCopyService {
     public boolean addCopy(int bookId, String accessionNumber) {
         try {
             Connection conn = DatabaseConnection.getConnection();
+            Integer branchId = resolveBookBranchId(conn, bookId);
             PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO book_copies (book_id, accession_number) " +
-                "VALUES (?, ?)"
+                "INSERT INTO book_copies (book_id, accession_number, branch_id) " +
+                "VALUES (?, ?, ?)"
             );
             stmt.setInt(1, bookId);
             stmt.setString(2, accessionNumber);
+            stmt.setObject(3, branchId);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -33,13 +36,15 @@ public class BookCopyService {
         Connection conn = DatabaseConnection.getConnection();
         try {
             conn.setAutoCommit(false);
+            Integer branchId = resolveBookBranchId(conn, bookId);
             PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO book_copies (book_id, accession_number) " +
-                "VALUES (?, ?)"
+                "INSERT INTO book_copies (book_id, accession_number, branch_id) " +
+                "VALUES (?, ?, ?)"
             );
             for (String acc : accessionNumbers) {
                 stmt.setInt(1, bookId);
                 stmt.setString(2, acc.trim());
+                stmt.setObject(3, branchId);
                 stmt.addBatch();
             }
             stmt.executeBatch();
@@ -64,9 +69,11 @@ public class BookCopyService {
 
             // Check not issued
             PreparedStatement check = conn.prepareStatement(
-                "SELECT status FROM book_copies WHERE id = ?"
+                "SELECT status FROM book_copies WHERE id = ?" +
+                BranchScope.andClause("branch_id")
             );
             check.setInt(1, copyId);
+            BranchScope.bind(check, 2);
             ResultSet rs = check.executeQuery();
             if (rs.next() && "ISSUED".equals(rs.getString("status"))) {
                 System.err.println("Cannot delete — copy is issued.");
@@ -75,16 +82,20 @@ public class BookCopyService {
 
             // Get book_id before deleting
             PreparedStatement getBook = conn.prepareStatement(
-                "SELECT book_id FROM book_copies WHERE id = ?"
+                "SELECT book_id FROM book_copies WHERE id = ?" +
+                BranchScope.andClause("branch_id")
             );
             getBook.setInt(1, copyId);
+            BranchScope.bind(getBook, 2);
             rs = getBook.executeQuery();
             int bookId = rs.next() ? rs.getInt("book_id") : -1;
 
             PreparedStatement stmt = conn.prepareStatement(
-                "DELETE FROM book_copies WHERE id = ?"
+                "DELETE FROM book_copies WHERE id = ?" +
+                BranchScope.andClause("branch_id")
             );
             stmt.setInt(1, copyId);
+            BranchScope.bind(stmt, 2);
             stmt.executeUpdate();
 
             if (bookId > 0) updateBookCopyCount(bookId, conn);
@@ -103,9 +114,11 @@ public class BookCopyService {
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT id, book_id, accession_number, status " +
                 "FROM book_copies WHERE book_id = ? " +
+                (BranchScope.isScoped() ? "AND branch_id = ? " : "") +
                 "ORDER BY accession_number ASC"
             );
             stmt.setInt(1, bookId);
+            BranchScope.bind(stmt, 2);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 copies.add(new BookCopy(
@@ -138,9 +151,11 @@ public class BookCopyService {
                 LEFT JOIN members m
                     ON m.id = ir.member_id
                 WHERE bc.book_id = ?
+                %s
                 ORDER BY bc.accession_number ASC
-            """);
+            """.formatted(BranchScope.isScoped() ? "AND bc.branch_id = ?" : ""));
             stmt.setInt(1, bookId);
+            BranchScope.bind(stmt, 2);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 String issuedTo = rs.getString("issued_to");
@@ -168,9 +183,11 @@ public class BookCopyService {
                 "SELECT id, book_id, accession_number, status " +
                 "FROM book_copies " +
                 "WHERE book_id = ? AND status = 'AVAILABLE' " +
+                (BranchScope.isScoped() ? "AND branch_id = ? " : "") +
                 "ORDER BY accession_number ASC"
             );
             stmt.setInt(1, bookId);
+            BranchScope.bind(stmt, 2);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
                 copies.add(new BookCopy(
@@ -192,10 +209,12 @@ public class BookCopyService {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(*) FROM book_copies " +
-                "WHERE accession_number = ? AND id != ?"
+                "WHERE accession_number = ? AND id != ?" +
+                BranchScope.andClause("branch_id")
             );
             stmt.setString(1, accessionNumber);
             stmt.setInt(2, excludeCopyId);
+            BranchScope.bind(stmt, 3);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
@@ -219,9 +238,11 @@ public class BookCopyService {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT id, book_id, accession_number, status " +
-                "FROM book_copies WHERE accession_number = ?"
+                "FROM book_copies WHERE accession_number = ?" +
+                BranchScope.andClause("branch_id")
             );
             stmt.setString(1, accessionNumber);
+            BranchScope.bind(stmt, 2);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
                 return new BookCopy(
@@ -242,10 +263,12 @@ public class BookCopyService {
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
-                "UPDATE book_copies SET status = ? WHERE id = ?"
+                "UPDATE book_copies SET status = ? WHERE id = ?" +
+                BranchScope.andClause("branch_id")
             );
             stmt.setString(1, status);
             stmt.setInt(2, copyId);
+            BranchScope.bind(stmt, 3);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -283,5 +306,16 @@ public class BookCopyService {
         update.setInt(2, availCount);
         update.setInt(3, bookId);
         update.executeUpdate();
+    }
+
+    private Integer resolveBookBranchId(Connection conn, int bookId)
+            throws SQLException {
+        PreparedStatement stmt = conn.prepareStatement(
+            "SELECT branch_id FROM books WHERE id = ?"
+        );
+        stmt.setInt(1, bookId);
+        ResultSet rs = stmt.executeQuery();
+        if (rs.next()) return (Integer) rs.getObject("branch_id");
+        return BranchScope.branchId();
     }
 }

@@ -229,7 +229,9 @@
                             <TableColumn fx:id="colIssueMemberId"
                                          text="Member ID" prefWidth="100"/>
                             <TableColumn fx:id="colIssueBook"
-                                         text="Book Title" prefWidth="200"/>
+                                         text="Book Title" prefWidth="180"/>
+                            <TableColumn fx:id="colIssueAccession"
+                                         text="Accession" prefWidth="110"/>
                             <TableColumn fx:id="colIssueDate"
                                          text="Issue Date" prefWidth="100"/>
                             <TableColumn fx:id="colDueDate"
@@ -312,7 +314,9 @@
                             <TableColumn fx:id="colReturnMemberId"
                                          text="Member ID" prefWidth="100"/>
                             <TableColumn fx:id="colReturnBook"
-                                         text="Book Title" prefWidth="200"/>
+                                         text="Book Title" prefWidth="180"/>
+                            <TableColumn fx:id="colReturnAccession"
+                                         text="Accession" prefWidth="110"/>
                             <TableColumn fx:id="colReturnIssueDate"
                                          text="Issue Date" prefWidth="100"/>
                             <TableColumn fx:id="colReturnDueDate"
@@ -367,7 +371,9 @@
                             <TableColumn fx:id="colOvMemberId"
                                          text="Member ID" prefWidth="100"/>
                             <TableColumn fx:id="colOvBook"
-                                         text="Book Title" prefWidth="200"/>
+                                         text="Book Title" prefWidth="180"/>
+                            <TableColumn fx:id="colOvAccession"
+                                         text="Accession" prefWidth="110"/>
                             <TableColumn fx:id="colOvIssueDate"
                                          text="Issue Date" prefWidth="100"/>
                             <TableColumn fx:id="colOvDueDate"

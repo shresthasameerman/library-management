@@ -47,6 +47,7 @@ public class IssueController implements Initializable {
     @FXML private TableColumn<IssueRecord,String>  colIssueMember;
     @FXML private TableColumn<IssueRecord,String>  colIssueMemberId;
     @FXML private TableColumn<IssueRecord,String>  colIssueBook;
+    @FXML private TableColumn<IssueRecord,String>  colIssueAccession;
     @FXML private TableColumn<IssueRecord,String>  colIssueDate;
     @FXML private TableColumn<IssueRecord,String>  colDueDate;
     @FXML private TableColumn<IssueRecord,String>  colIssueFine;
@@ -60,6 +61,7 @@ public class IssueController implements Initializable {
     @FXML private TableColumn<IssueRecord,String>  colReturnMember;
     @FXML private TableColumn<IssueRecord,String>  colReturnMemberId;
     @FXML private TableColumn<IssueRecord,String>  colReturnBook;
+    @FXML private TableColumn<IssueRecord,String>  colReturnAccession;
     @FXML private TableColumn<IssueRecord,String>  colReturnIssueDate;
     @FXML private TableColumn<IssueRecord,String>  colReturnDueDate;
     @FXML private TableColumn<IssueRecord,String>  colReturnFine;
@@ -70,6 +72,7 @@ public class IssueController implements Initializable {
     @FXML private TableColumn<IssueRecord,String>  colOvMember;
     @FXML private TableColumn<IssueRecord,String>  colOvMemberId;
     @FXML private TableColumn<IssueRecord,String>  colOvBook;
+    @FXML private TableColumn<IssueRecord,String>  colOvAccession;
     @FXML private TableColumn<IssueRecord,String>  colOvIssueDate;
     @FXML private TableColumn<IssueRecord,String>  colOvDueDate;
     @FXML private TableColumn<IssueRecord,String>  colOvFine;
@@ -133,6 +136,8 @@ public class IssueController implements Initializable {
             new PropertyValueFactory<>("memberId2"));
         colIssueBook.setCellValueFactory(
             new PropertyValueFactory<>("bookTitle"));
+        colIssueAccession.setCellValueFactory(
+            new PropertyValueFactory<>("accessionNumber"));
         colIssueDate.setCellValueFactory(
             new PropertyValueFactory<>("issueDate"));
         colDueDate.setCellValueFactory(
@@ -195,6 +200,8 @@ public class IssueController implements Initializable {
             new PropertyValueFactory<>("memberId2"));
         colReturnBook.setCellValueFactory(
             new PropertyValueFactory<>("bookTitle"));
+        colReturnAccession.setCellValueFactory(
+            new PropertyValueFactory<>("accessionNumber"));
         colReturnIssueDate.setCellValueFactory(
             new PropertyValueFactory<>("issueDate"));
         colReturnDueDate.setCellValueFactory(
@@ -251,6 +258,8 @@ public class IssueController implements Initializable {
             new PropertyValueFactory<>("memberId2"));
         colOvBook.setCellValueFactory(
             new PropertyValueFactory<>("bookTitle"));
+        colOvAccession.setCellValueFactory(
+            new PropertyValueFactory<>("accessionNumber"));
         colOvIssueDate.setCellValueFactory(
             new PropertyValueFactory<>("issueDate"));
         colOvDueDate.setCellValueFactory(

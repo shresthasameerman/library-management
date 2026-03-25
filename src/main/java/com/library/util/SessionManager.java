@@ -20,7 +20,19 @@ public class SessionManager {
     }
 
     public static boolean isAdmin() {
-        return currentUser != null && currentUser.isAdmin();
+        return currentUser != null && currentUser.isLibrarian();
+    }
+
+    public static boolean isSuperAdmin() {
+        return currentUser != null && currentUser.isSuperAdmin();
+    }
+
+    public static Integer getCurrentBranchId() {
+        return currentUser != null ? currentUser.getBranchId() : null;
+    }
+
+    public static boolean isBranchScopedUser() {
+        return isLoggedIn() && !isSuperAdmin() && getCurrentBranchId() != null;
     }
 
     public static void logout() {

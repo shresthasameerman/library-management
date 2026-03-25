@@ -10,6 +10,7 @@ public class IssueRecord {
     private final StringProperty  bookTitle;
     private final StringProperty  memberName;
     private final StringProperty  memberId2;   // member_id text e.g. TBC0001
+    private final StringProperty  accessionNumber;
     private final StringProperty  issueDate;
     private final StringProperty  dueDate;
     private final StringProperty  returnDate;
@@ -20,12 +21,22 @@ public class IssueRecord {
                        String bookTitle, String memberName, String memberId2,
                        String issueDate, String dueDate, String returnDate,
                        double fineAmount, String status) {
+                this(id, bookId, memberId, bookTitle, memberName, memberId2,
+                     "", issueDate, dueDate, returnDate, fineAmount, status);
+                }
+
+                public IssueRecord(int id, int bookId, int memberId,
+                           String bookTitle, String memberName, String memberId2,
+                           String accessionNumber,
+                           String issueDate, String dueDate, String returnDate,
+                           double fineAmount, String status) {
         this.id         = new SimpleIntegerProperty(id);
         this.bookId     = new SimpleIntegerProperty(bookId);
         this.memberId   = new SimpleIntegerProperty(memberId);
         this.bookTitle  = new SimpleStringProperty(bookTitle);
         this.memberName = new SimpleStringProperty(memberName);
         this.memberId2  = new SimpleStringProperty(memberId2);
+                this.accessionNumber = new SimpleStringProperty(accessionNumber);
         this.issueDate  = new SimpleStringProperty(issueDate);
         this.dueDate    = new SimpleStringProperty(dueDate);
         this.returnDate = new SimpleStringProperty(returnDate);
@@ -40,6 +51,7 @@ public class IssueRecord {
     public String getBookTitle()   { return bookTitle.get(); }
     public String getMemberName()  { return memberName.get(); }
     public String getMemberId2()   { return memberId2.get(); }
+    public String getAccessionNumber() { return accessionNumber.get(); }
     public String getIssueDate()   { return issueDate.get(); }
     public String getDueDate()     { return dueDate.get(); }
     public String getReturnDate()  { return returnDate.get(); }
@@ -51,6 +63,7 @@ public class IssueRecord {
     public StringProperty  bookTitleProperty()  { return bookTitle; }
     public StringProperty  memberNameProperty() { return memberName; }
     public StringProperty  memberId2Property()  { return memberId2; }
+    public StringProperty accessionNumberProperty() { return accessionNumber; }
     public StringProperty  issueDateProperty()  { return issueDate; }
     public StringProperty  dueDateProperty()    { return dueDate; }
     public StringProperty  returnDateProperty() { return returnDate; }

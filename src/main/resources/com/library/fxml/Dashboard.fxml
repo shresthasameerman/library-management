@@ -413,6 +413,43 @@
                                                -fx-cursor: hand;"
                                         onAction="#showIssueReturn"/>
                             </HBox>
+                            <HBox spacing="10" fx:id="superAdminActionsRow">
+                                <Button fx:id="btnManageBranches"
+                                        text="🏢  Manage Branches"
+                                        prefHeight="44"
+                                        HBox.hgrow="ALWAYS"
+                                        maxWidth="Infinity"
+                                        style="-fx-background-color: #eef1fb;
+                                               -fx-text-fill: #1a1a2e;
+                                               -fx-font-weight: bold;
+                                               -fx-font-size: 13px;
+                                               -fx-background-radius: 8;
+                                               -fx-cursor: hand;"
+                                        onAction="#handleManageBranches"/>
+                                <Button fx:id="btnManageLibrarians"
+                                        text="🧑‍💼  Manage Librarians"
+                                        prefHeight="44"
+                                        HBox.hgrow="ALWAYS"
+                                        maxWidth="Infinity"
+                                        style="-fx-background-color: #eef1fb;
+                                               -fx-text-fill: #1a1a2e;
+                                               -fx-font-weight: bold;
+                                               -fx-font-size: 13px;
+                                               -fx-background-radius: 8;
+                                               -fx-cursor: hand;"
+                                        onAction="#handleManageLibrarians"/>
+                            </HBox>
+                            <Button fx:id="btnSystemSummary"
+                                    text="🌐  System-Wide Branch Summary"
+                                    prefHeight="42"
+                                    maxWidth="Infinity"
+                                    style="-fx-background-color: #141428;
+                                           -fx-text-fill: white;
+                                           -fx-font-weight: bold;
+                                           -fx-font-size: 12px;
+                                           -fx-background-radius: 8;
+                                           -fx-cursor: hand;"
+                                    onAction="#handleSystemSummary"/>
                         </VBox>
 
                         <!-- System Status -->

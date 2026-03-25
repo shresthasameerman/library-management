@@ -2,6 +2,7 @@ package com.library.service;
 
 import com.library.database.DatabaseConnection;
 import com.library.model.Book;
+import com.library.util.BranchScope;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -23,7 +24,9 @@ public class BookService {
         """;
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            String scopedSql = sql.replace(") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ", branch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
+            PreparedStatement stmt = conn.prepareStatement(scopedSql);
             stmt.setString(1, book.getTitle());
             stmt.setString(2, book.getAuthor());
             stmt.setString(3, book.getIsbn());
@@ -38,6 +41,7 @@ public class BookService {
             stmt.setString(12, book.getPlaceOfPublication());
             stmt.setInt(13, book.getYearOfPublication());
             stmt.setInt(14, book.getNumberOfPages());
+            stmt.setObject(15, BranchScope.branchId());
             stmt.executeUpdate();
             System.out.println("✓ Book added: " + book.getTitle());
             return true;
@@ -60,6 +64,7 @@ public class BookService {
             WHERE id = ?
         """;
         try {
+            sql += BranchScope.andClause("branch_id");
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, book.getTitle());
@@ -76,6 +81,7 @@ public class BookService {
             stmt.setInt(12, book.getYearOfPublication());
             stmt.setInt(13, book.getNumberOfPages());
             stmt.setInt(14, book.getId());
+            BranchScope.bind(stmt, 15);
             stmt.executeUpdate();
             System.out.println("✓ Book updated: " + book.getTitle());
             return true;
@@ -97,10 +103,11 @@ public class BookService {
             ResultSet rs = check.executeQuery();
             if (rs.next() && rs.getInt(1) > 0) return false;
 
-            PreparedStatement stmt = conn.prepareStatement(
-                "DELETE FROM books WHERE id = ?"
-            );
+            String deleteSql = "DELETE FROM books WHERE id = ?" +
+                BranchScope.andClause("branch_id");
+            PreparedStatement stmt = conn.prepareStatement(deleteSql);
             stmt.setInt(1, bookId);
+            BranchScope.bind(stmt, 2);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -126,21 +133,27 @@ public class BookService {
                    place_of_publication, year_of_publication,
                    number_of_pages
             FROM books
-            WHERE title                 LIKE ?
-               OR author                LIKE ?
-               OR isbn                  LIKE ?
-               OR category              LIKE ?
-               OR accession_number      LIKE ?
-               OR classification_number LIKE ?
-               OR publisher             LIKE ?
+            WHERE (
+                    title                 LIKE ?
+                OR  author                LIKE ?
+                OR  isbn                  LIKE ?
+                OR  category              LIKE ?
+                OR  accession_number      LIKE ?
+                OR  classification_number LIKE ?
+                OR  publisher             LIKE ?
+            )
+            %s
             ORDER BY title ASC
         """;
+        String branchFilter = BranchScope.isScoped() ? "AND branch_id = ?" : "";
+        sql = sql.formatted(branchFilter);
 
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
             String p = "%" + keyword + "%";
             for (int i = 1; i <= 7; i++) stmt.setString(i, p);
+            BranchScope.bind(stmt, 8);
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) books.add(mapBook(rs));
@@ -165,10 +178,17 @@ public class BookService {
                             FROM books
                             WHERE accession_number IS NOT NULL
                             AND   accession_number != ''
+                            %s
                         """;
+
+                        String rangeBranchFilter = BranchScope.isScoped()
+                            ? "AND branch_id = ?"
+                            : "";
+                        rangeSql = rangeSql.formatted(rangeBranchFilter);
 
                         PreparedStatement rangeStmt =
                             conn.prepareStatement(rangeSql);
+                        BranchScope.bind(rangeStmt, 1);
                         ResultSet rangeRs = rangeStmt.executeQuery();
 
                         while (rangeRs.next()) {
@@ -218,10 +238,12 @@ public class BookService {
         try {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
-                    "SELECT COUNT(*) FROM books WHERE isbn = ? AND id != ?"
+                    "SELECT COUNT(*) FROM books WHERE isbn = ? AND id != ?" +
+                    BranchScope.andClause("branch_id")
                 );
             stmt.setString(1, isbn);
             stmt.setInt(2, excludeId);
+            BranchScope.bind(stmt, 3);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
@@ -236,10 +258,12 @@ public class BookService {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
                     "SELECT COUNT(*) FROM books " +
-                    "WHERE accession_number = ? AND id != ?"
+                    "WHERE accession_number = ? AND id != ?" +
+                    BranchScope.andClause("branch_id")
                 );
             stmt.setString(1, accession);
             stmt.setInt(2, excludeId);
+            BranchScope.bind(stmt, 3);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
@@ -253,14 +277,18 @@ public class BookService {
         int end = start + copies - 1;
         try {
             Connection conn = DatabaseConnection.getConnection();
-            PreparedStatement stmt = conn.prepareStatement("""
+            String branchFilter = BranchScope.isScoped() ? "AND branch_id = ?" : "";
+            String sql = """
                 SELECT accession_number, total_copies
                 FROM books
                 WHERE accession_number IS NOT NULL
                 AND   accession_number != ''
                 AND   id != ?
-            """);
+                %s
+            """.formatted(branchFilter);
+            PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setInt(1, excludeId);
+            BranchScope.bind(stmt, 2);
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
@@ -311,8 +339,11 @@ public class BookService {
         try {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
-                    "SELECT id FROM books ORDER BY id DESC LIMIT 1"
+                    "SELECT id FROM books" +
+                    (BranchScope.isScoped() ? " WHERE branch_id = ?" : "") +
+                    " ORDER BY id DESC LIMIT 1"
                 );
+            BranchScope.bind(stmt, 1);
             ResultSet rs = stmt.executeQuery();
             return rs.next() ? rs.getInt("id") : 0;
         } catch (SQLException e) {

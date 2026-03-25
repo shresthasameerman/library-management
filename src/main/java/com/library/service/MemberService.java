@@ -2,6 +2,7 @@ package com.library.service;
 
 import com.library.database.DatabaseConnection;
 import com.library.model.Member;
+import com.library.util.BranchScope;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -58,8 +59,8 @@ public class MemberService {
         String sql = """
             INSERT INTO members
                 (name, email, phone, member_id,
-                 department, member_type, intake, active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                 department, member_type, intake, active, branch_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
         """;
         try {
             Connection conn = DatabaseConnection.getConnection();
@@ -71,6 +72,7 @@ public class MemberService {
             stmt.setString(5, member.getDepartment());
             stmt.setString(6, member.getMemberType());
             stmt.setString(7, member.getIntake());
+            stmt.setObject(8, BranchScope.branchId());
             stmt.executeUpdate();
             System.out.println("✓ Member added: " + member.getName());
             return true;
@@ -90,6 +92,7 @@ public class MemberService {
             WHERE id = ?
         """;
         try {
+            sql += BranchScope.andClause("branch_id");
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(sql);
             stmt.setString(1, member.getName());
@@ -100,6 +103,7 @@ public class MemberService {
             stmt.setString(6, member.getMemberType());
             stmt.setString(7, member.getIntake());
             stmt.setInt(8, member.getId());
+            BranchScope.bind(stmt, 9);
             stmt.executeUpdate();
             System.out.println("✓ Member updated: " + member.getName());
             return true;
@@ -114,9 +118,11 @@ public class MemberService {
         try {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
-                    "UPDATE members SET active = 0 WHERE id = ?"
+                    "UPDATE members SET active = 0 WHERE id = ?" +
+                    BranchScope.andClause("branch_id")
                 );
             stmt.setInt(1, memberId);
+            BranchScope.bind(stmt, 2);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -130,9 +136,11 @@ public class MemberService {
         try {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
-                    "UPDATE members SET active = 1 WHERE id = ?"
+                    "UPDATE members SET active = 1 WHERE id = ?" +
+                    BranchScope.andClause("branch_id")
                 );
             stmt.setInt(1, memberId);
+            BranchScope.bind(stmt, 2);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -149,9 +157,11 @@ public class MemberService {
             // Block if member CURRENTLY has books issued
             PreparedStatement check = conn.prepareStatement(
                 "SELECT COUNT(*) FROM issue_records " +
-                "WHERE member_id = ? AND status = 'ISSUED'"
+                "WHERE member_id = ? AND status = 'ISSUED'" +
+                BranchScope.andClause("branch_id")
             );
             check.setInt(1, memberId);
+            BranchScope.bind(check, 2);
             ResultSet rs = check.executeQuery();
             if (rs.next() && rs.getInt(1) > 0) {
                 System.err.println("Cannot delete — member has active issues.");
@@ -161,16 +171,20 @@ public class MemberService {
             // Delete their RETURNED issue history first
             // (removes FK constraint block)
             PreparedStatement deleteHistory = conn.prepareStatement(
-                "DELETE FROM issue_records WHERE member_id = ?"
+                "DELETE FROM issue_records WHERE member_id = ?" +
+                BranchScope.andClause("branch_id")
             );
             deleteHistory.setInt(1, memberId);
+            BranchScope.bind(deleteHistory, 2);
             deleteHistory.executeUpdate();
 
             // Now safely delete the member
             PreparedStatement stmt = conn.prepareStatement(
-                "DELETE FROM members WHERE id = ?"
+                "DELETE FROM members WHERE id = ?" +
+                BranchScope.andClause("branch_id")
             );
             stmt.setInt(1, memberId);
+            BranchScope.bind(stmt, 2);
             stmt.executeUpdate();
             System.out.println("✓ Member deleted: ID " + memberId);
             return true;
@@ -197,13 +211,15 @@ public class MemberService {
             SELECT id, name, email, phone, member_id,
                    department, member_type, intake, active
             FROM members
-            WHERE (name        LIKE ?
+             WHERE (name        LIKE ?
                OR  email       LIKE ?
                OR  member_id   LIKE ?
                OR  department  LIKE ?
                OR  intake      LIKE ?
                OR  member_type LIKE ?)
         """);
+
+         if (BranchScope.isScoped()) sql.append(" AND branch_id = ?");
 
         if (activeOnly)            sql.append(" AND active = 1");
         if (!"All".equals(course)) sql.append(" AND department = ?");
@@ -223,6 +239,7 @@ public class MemberService {
             stmt.setString(6, p);
 
             int idx = 7;
+            if (BranchScope.isScoped()) idx = BranchScope.bind(stmt, idx);
             if (!"All".equals(course)) stmt.setString(idx++, course);
             if (!"All".equals(intake)) stmt.setString(idx,   intake);
 
@@ -259,10 +276,12 @@ public class MemberService {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
                     "SELECT COUNT(*) FROM members " +
-                    "WHERE member_id = ? AND id != ?"
+                    "WHERE member_id = ? AND id != ?" +
+                    BranchScope.andClause("branch_id")
                 );
             stmt.setString(1, memberId);
             stmt.setInt(2, excludeId);
+            BranchScope.bind(stmt, 3);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
@@ -273,12 +292,12 @@ public class MemberService {
     // ── Has active issues ─────────────────────────────────────────────
     public boolean hasActiveIssues(int memberId) {
         try {
+            String sql = "SELECT COUNT(*) FROM issue_records WHERE member_id = ? " +
+                "AND status = 'ISSUED'" + BranchScope.andClause("branch_id");
             PreparedStatement stmt = DatabaseConnection.getConnection()
-                .prepareStatement("""
-                    SELECT COUNT(*) FROM issue_records
-                    WHERE member_id = ? AND status = 'ISSUED'
-                """);
+                .prepareStatement(sql);
             stmt.setInt(1, memberId);
+            BranchScope.bind(stmt, 2);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
@@ -291,7 +310,10 @@ public class MemberService {
         try {
             ResultSet rs = DatabaseConnection.getConnection()
                 .createStatement()
-                .executeQuery("SELECT COUNT(*) FROM members");
+                .executeQuery("SELECT COUNT(*) FROM members" +
+                    (BranchScope.isScoped()
+                        ? " WHERE branch_id = " + BranchScope.branchId()
+                        : ""));
             if (rs.next())
                 return String.format("TBC%04d", rs.getInt(1) + 1);
         } catch (SQLException e) {

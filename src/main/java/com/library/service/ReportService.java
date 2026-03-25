@@ -1,6 +1,7 @@
 package com.library.service;
 
 import com.library.database.DatabaseConnection;
+import com.library.util.BranchScope;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -57,8 +58,10 @@ public class ReportService {
             JOIN books   b ON ir.book_id   = b.id
             JOIN members m ON ir.member_id = m.id
             WHERE ir.status = 'ISSUED'
+            %s
             ORDER BY ir.due_date ASC
         """;
+        sql = sql.formatted(BranchScope.isScoped() ? "AND ir.branch_id = ?" : "");
 
         try (FileWriter writer = new FileWriter(path)) {
             // Header
@@ -72,7 +75,9 @@ public class ReportService {
                          "Days Overdue,Fine (Rs.)\n");
 
             Connection conn = DatabaseConnection.getConnection();
-            ResultSet  rs   = conn.createStatement().executeQuery(sql);
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            BranchScope.bind(stmt, 1);
+            ResultSet rs = stmt.executeQuery();
 
             int count = 0;
             double totalFine = 0;
@@ -129,8 +134,10 @@ public class ReportService {
             JOIN members m ON ir.member_id = m.id
             WHERE ir.status = 'ISSUED'
             AND   ir.due_date < DATE('now')
+            %s
             ORDER BY days_overdue DESC
         """;
+        sql = sql.formatted(BranchScope.isScoped() ? "AND ir.branch_id = ?" : "");
 
         try (FileWriter writer = new FileWriter(path)) {
             writer.write("The British College — Library Management System\n");
@@ -143,7 +150,9 @@ public class ReportService {
                          "Days Overdue,Fine (Rs.)\n");
 
             Connection conn = DatabaseConnection.getConnection();
-            ResultSet  rs   = conn.createStatement().executeQuery(sql);
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            BranchScope.bind(stmt, 1);
+            ResultSet rs = stmt.executeQuery();
 
             int count = 0;
             double totalFine = 0;
@@ -188,8 +197,10 @@ public class ReportService {
                 (b.total_copies - b.available_copies) AS issued_copies,
                 b.added_at
             FROM books b
+            %s
             ORDER BY b.category, b.title ASC
         """;
+        sql = sql.formatted(BranchScope.isScoped() ? "WHERE b.branch_id = ?" : "");
 
         try (FileWriter writer = new FileWriter(path)) {
             writer.write("The British College — Library Management System\n");
@@ -201,7 +212,9 @@ public class ReportService {
                          "Total Copies,Available,Issued,Added Date\n");
 
             Connection conn = DatabaseConnection.getConnection();
-            ResultSet  rs   = conn.createStatement().executeQuery(sql);
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            BranchScope.bind(stmt, 1);
+            ResultSet rs = stmt.executeQuery();
 
             int count = 0;
             int totalCopies = 0;
@@ -249,9 +262,11 @@ public class ReportService {
                 SUM(CASE WHEN ir.status = 'ISSUED' THEN 1 ELSE 0 END) AS currently_holding
             FROM members m
             LEFT JOIN issue_records ir ON m.id = ir.member_id
+            %s
             GROUP BY m.id
             ORDER BY m.member_type, m.name ASC
         """;
+        sql = sql.formatted(BranchScope.isScoped() ? "WHERE m.branch_id = ?" : "");
 
         try (FileWriter writer = new FileWriter(path)) {
             writer.write("The British College — Library Management System\n");
@@ -263,7 +278,9 @@ public class ReportService {
                          "Status,Joined Date,Total Borrowed,Currently Holding\n");
 
             Connection conn = DatabaseConnection.getConnection();
-            ResultSet  rs   = conn.createStatement().executeQuery(sql);
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            BranchScope.bind(stmt, 1);
+            ResultSet rs = stmt.executeQuery();
 
             int students = 0, staff = 0;
             while (rs.next()) {
@@ -318,9 +335,14 @@ public class ReportService {
             writer.write("\n");
 
             // ── Books issued this month
+            String scopedIssueWhere = BranchScope.isScoped()
+                ? " AND branch_id = " + BranchScope.branchId()
+                : "";
+
             ResultSet rs = conn.createStatement().executeQuery(
                 "SELECT COUNT(*) FROM issue_records " +
-                "WHERE strftime('%Y-%m', issue_date) = '" + month + "'"
+                "WHERE strftime('%Y-%m', issue_date) = '" + month + "'" +
+                scopedIssueWhere
             );
             writer.write("MONTHLY STATISTICS\n");
             writer.write("Books Issued This Month," +
@@ -329,7 +351,8 @@ public class ReportService {
             // ── Books returned this month
             rs = conn.createStatement().executeQuery(
                 "SELECT COUNT(*) FROM issue_records " +
-                "WHERE strftime('%Y-%m', return_date) = '" + month + "'"
+                "WHERE strftime('%Y-%m', return_date) = '" + month + "'" +
+                scopedIssueWhere
             );
             writer.write("Books Returned This Month," +
                 (rs.next() ? rs.getInt(1) : 0) + "\n");
@@ -337,21 +360,26 @@ public class ReportService {
             // ── Fines collected this month
             rs = conn.createStatement().executeQuery(
                 "SELECT COALESCE(SUM(fine_amount), 0) FROM issue_records " +
-                "WHERE strftime('%Y-%m', return_date) = '" + month + "'"
+                "WHERE strftime('%Y-%m', return_date) = '" + month + "'" +
+                scopedIssueWhere
             );
             writer.write("Fines Collected (Rs.)," +
                 (rs.next() ? (int)rs.getDouble(1) : 0) + "\n");
 
             // ── Total active members
             rs = conn.createStatement().executeQuery(
-                "SELECT COUNT(*) FROM members WHERE active = 1"
+                "SELECT COUNT(*) FROM members WHERE active = 1" +
+                (BranchScope.isScoped()
+                    ? " AND branch_id = " + BranchScope.branchId()
+                    : "")
             );
             writer.write("Total Active Members," +
                 (rs.next() ? rs.getInt(1) : 0) + "\n");
 
             // ── Currently issued
             rs = conn.createStatement().executeQuery(
-                "SELECT COUNT(*) FROM issue_records WHERE status = 'ISSUED'"
+                "SELECT COUNT(*) FROM issue_records WHERE status = 'ISSUED'" +
+                scopedIssueWhere
             );
             writer.write("Currently Issued Books," +
                 (rs.next() ? rs.getInt(1) : 0) + "\n");
@@ -359,19 +387,25 @@ public class ReportService {
             // ── Overdue
             rs = conn.createStatement().executeQuery(
                 "SELECT COUNT(*) FROM issue_records " +
-                "WHERE status = 'ISSUED' AND due_date < DATE('now')"
+                "WHERE status = 'ISSUED' AND due_date < DATE('now')" +
+                scopedIssueWhere
             );
             writer.write("Overdue Books," +
                 (rs.next() ? rs.getInt(1) : 0) + "\n");
 
             // ── Total fines pending
-            rs = conn.createStatement().executeQuery("""
+            String pendingFineSql = """
                 SELECT COALESCE(
                     SUM(CAST((julianday('now') - julianday(due_date)) * 5 AS INTEGER))
                 , 0)
                 FROM issue_records
                 WHERE status = 'ISSUED' AND due_date < DATE('now')
-            """);
+                %s
+            """;
+            pendingFineSql = pendingFineSql.formatted(
+                BranchScope.isScoped() ? "AND branch_id = " + BranchScope.branchId() : ""
+            );
+            rs = conn.createStatement().executeQuery(pendingFineSql);
             writer.write("Total Pending Fines (Rs.)," +
                 (rs.next() ? rs.getInt(1) : 0) + "\n");
 
@@ -386,10 +420,13 @@ public class ReportService {
                 JOIN books b ON ir.book_id = b.id
                 WHERE strftime('%Y-%m', ir.issue_date) = '""" + month + """
                 '
+                %s
                 GROUP BY ir.book_id
                 ORDER BY times DESC
                 LIMIT 10
-            """);
+            """.formatted(BranchScope.isScoped()
+                ? "AND ir.branch_id = " + BranchScope.branchId()
+                : ""));
             while (rs.next()) {
                 writer.write(String.format("%s,%s,%d\n",
                     escapeCsv(rs.getString("title")),

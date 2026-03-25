@@ -1,6 +1,8 @@
 package com.library.controller;
 
 import com.library.model.Member;
+import com.library.model.IssueRecord;
+import com.library.service.IssueService;
 import com.library.service.MemberService;
 import com.library.util.AlertHelper;
 
@@ -45,6 +47,7 @@ public class MemberController implements Initializable {
     @FXML private Label           filterInfoLabel;
 
     private final MemberService          memberService = new MemberService();
+    private final IssueService           issueService  = new IssueService();
     private final ObservableList<Member> memberList    =
                                          FXCollections.observableArrayList();
 
@@ -60,6 +63,33 @@ public class MemberController implements Initializable {
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colMemberId.setCellValueFactory(new PropertyValueFactory<>("memberId"));
         colName.setCellValueFactory(new PropertyValueFactory<>("name"));
+        colName.setCellFactory(col -> new TableCell<>() {
+            private final Hyperlink nameLink = new Hyperlink();
+            {
+                nameLink.setOnAction(e -> {
+                    Member member = getTableView().getItems().get(getIndex());
+                    if (member != null) {
+                        openMemberProfile(member);
+                    }
+                });
+                nameLink.setStyle(
+                    "-fx-text-fill: #4361ee; -fx-font-size: 13px;" +
+                    "-fx-font-weight: bold;"
+                );
+            }
+
+            @Override
+            protected void updateItem(String value, boolean empty) {
+                super.updateItem(value, empty);
+                if (empty || value == null || value.isBlank()) {
+                    setGraphic(null);
+                } else {
+                    nameLink.setText(value);
+                    setGraphic(nameLink);
+                }
+                setText(null);
+            }
+        });
         colDepartment.setCellValueFactory(new PropertyValueFactory<>("department"));
         colPhone.setCellValueFactory(new PropertyValueFactory<>("phone"));
 
@@ -503,6 +533,144 @@ public class MemberController implements Initializable {
     }
 
     // ── Helper ────────────────────────────────────────────────────────
+    private void openMemberProfile(Member member) {
+        List<IssueRecord> activeIssues = issueService.getIssuedBooksByMember(member.getId());
+        List<IssueRecord> previousIssues = issueService.getReturnedBooksByMember(member.getId());
+
+        Label title = new Label("Member Profile");
+        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a1a2e;");
+
+        GridPane infoGrid = new GridPane();
+        infoGrid.setHgap(24);
+        infoGrid.setVgap(10);
+        infoGrid.setPadding(new Insets(8, 0, 4, 0));
+
+        addInfoRow(infoGrid, 0, "Name", member.getName(), "Member ID", member.getMemberId());
+        addInfoRow(infoGrid, 1, "Phone", blankAsDash(member.getPhone()), "Email", blankAsDash(member.getEmail()));
+        addInfoRow(infoGrid, 2, "Type", member.getMemberType(), "Course", blankAsDash(member.getDepartment()));
+        addInfoRow(infoGrid, 3, "Intake", blankAsDash(member.getIntake()), "Status", member.getStatus());
+
+        Label currentLabel = new Label("Currently Issued Books");
+        currentLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1a1a2e;");
+        TableView<IssueRecord> currentTable = createCurrentIssueTable(activeIssues);
+
+        Label historyLabel = new Label("Previous Books Issued");
+        historyLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #1a1a2e;");
+        TableView<IssueRecord> historyTable = createHistoryTable(previousIssues);
+
+        Label summaryLabel = new Label(
+            "Active: " + activeIssues.size() +
+            "  |  Previously Returned: " + previousIssues.size()
+        );
+        summaryLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #4a5568;");
+
+        Button closeBtn = new Button("Close");
+        closeBtn.setPrefWidth(110);
+        closeBtn.setPrefHeight(36);
+        closeBtn.setStyle(
+            "-fx-background-color: #4361ee; -fx-text-fill: white;" +
+            "-fx-font-weight: bold; -fx-background-radius: 8; -fx-cursor: hand;"
+        );
+
+        HBox footer = new HBox(closeBtn);
+        footer.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox root = new VBox(12,
+            title,
+            new Separator(),
+            infoGrid,
+            currentLabel,
+            currentTable,
+            historyLabel,
+            historyTable,
+            summaryLabel,
+            footer
+        );
+        root.setPadding(new Insets(18));
+        root.setStyle("-fx-background-color: white;");
+
+        Stage dialog = new Stage();
+        dialog.setTitle("Member Profile - " + member.getName());
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.initOwner(Window.getWindows().stream()
+            .filter(Window::isShowing).findFirst().orElse(null));
+        dialog.setScene(new Scene(root, 940, 680));
+        dialog.setMinWidth(900);
+        dialog.setMinHeight(640);
+
+        closeBtn.setOnAction(e -> dialog.close());
+        dialog.showAndWait();
+    }
+
+    private TableView<IssueRecord> createCurrentIssueTable(List<IssueRecord> records) {
+        TableView<IssueRecord> table = new TableView<>();
+        table.setItems(FXCollections.observableArrayList(records));
+        table.setPrefHeight(190);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<IssueRecord, String> titleCol = new TableColumn<>("Book Title");
+        titleCol.setCellValueFactory(new PropertyValueFactory<>("bookTitle"));
+
+        TableColumn<IssueRecord, String> accessionCol = new TableColumn<>("Accession");
+        accessionCol.setCellValueFactory(new PropertyValueFactory<>("accessionNumber"));
+
+        TableColumn<IssueRecord, String> issueDateCol = new TableColumn<>("Issued On");
+        issueDateCol.setCellValueFactory(new PropertyValueFactory<>("issueDate"));
+
+        TableColumn<IssueRecord, String> dueDateCol = new TableColumn<>("Due Date");
+        dueDateCol.setCellValueFactory(new PropertyValueFactory<>("dueDate"));
+
+        table.getColumns().addAll(titleCol, accessionCol, issueDateCol, dueDateCol);
+        table.setPlaceholder(new Label("No currently issued books."));
+        return table;
+    }
+
+    private TableView<IssueRecord> createHistoryTable(List<IssueRecord> records) {
+        TableView<IssueRecord> table = new TableView<>();
+        table.setItems(FXCollections.observableArrayList(records));
+        table.setPrefHeight(190);
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<IssueRecord, String> titleCol = new TableColumn<>("Book Title");
+        titleCol.setCellValueFactory(new PropertyValueFactory<>("bookTitle"));
+
+        TableColumn<IssueRecord, String> accessionCol = new TableColumn<>("Accession");
+        accessionCol.setCellValueFactory(new PropertyValueFactory<>("accessionNumber"));
+
+        TableColumn<IssueRecord, String> issueDateCol = new TableColumn<>("Issued On");
+        issueDateCol.setCellValueFactory(new PropertyValueFactory<>("issueDate"));
+
+        TableColumn<IssueRecord, String> returnDateCol = new TableColumn<>("Returned On");
+        returnDateCol.setCellValueFactory(new PropertyValueFactory<>("returnDate"));
+
+        table.getColumns().addAll(titleCol, accessionCol, issueDateCol, returnDateCol);
+        table.setPlaceholder(new Label("No previous issue history."));
+        return table;
+    }
+
+    private void addInfoRow(GridPane grid, int row,
+                            String leftLabel, String leftValue,
+                            String rightLabel, String rightValue) {
+        Label l1 = new Label(leftLabel + ":");
+        l1.setStyle("-fx-font-weight: bold; -fx-text-fill: #334155;");
+        Label v1 = new Label(blankAsDash(leftValue));
+        v1.setStyle("-fx-text-fill: #0f172a;");
+
+        Label l2 = new Label(rightLabel + ":");
+        l2.setStyle("-fx-font-weight: bold; -fx-text-fill: #334155;");
+        Label v2 = new Label(blankAsDash(rightValue));
+        v2.setStyle("-fx-text-fill: #0f172a;");
+
+        grid.add(l1, 0, row);
+        grid.add(v1, 1, row);
+        grid.add(l2, 2, row);
+        grid.add(v2, 3, row);
+    }
+
+    private String blankAsDash(String value) {
+        return (value == null || value.isBlank()) ? "-" : value;
+    }
+
     private VBox fieldBox(String labelText, String labelStyle,
                           javafx.scene.Node field) {
         Label label = new Label(labelText);

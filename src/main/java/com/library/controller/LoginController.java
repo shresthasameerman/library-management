@@ -37,7 +37,7 @@ public class LoginController {
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
-                "SELECT id, username, password_hash, role FROM users WHERE username = ?"
+                "SELECT id, username, password_hash, role, branch_id FROM users WHERE username = ?"
             );
             stmt.setString(1, username);
             ResultSet rs = stmt.executeQuery();
@@ -51,11 +51,23 @@ public class LoginController {
                 );
 
                 if (passwordMatch) {
+                    String role = rs.getString("role");
+                    Integer branchId = rs.getObject("branch_id") != null
+                        ? rs.getInt("branch_id")
+                        : null;
+
+                    if (("ADMIN".equals(role) || "LIBRARIAN".equals(role))
+                            && branchId == null) {
+                        showError("Access denied: librarian account is not assigned to a branch.");
+                        return;
+                    }
+
                     // ── Login success ─────────────────────────────
                     User user = new User(
                         rs.getInt("id"),
                         rs.getString("username"),
-                        rs.getString("role")
+                        role,
+                        branchId
                     );
                     SessionManager.setCurrentUser(user);
                     System.out.println("✓ Logged in as: " + user);

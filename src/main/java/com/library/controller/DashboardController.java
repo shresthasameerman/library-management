@@ -1,7 +1,14 @@
 package com.library.controller;
 
 import com.library.database.DatabaseConnection;
+import com.library.model.Branch;
+import com.library.model.BranchSummary;
+import com.library.model.DashboardStats;
+import com.library.model.User;
+import com.library.service.BranchService;
+import com.library.service.DashboardService;
 import com.library.service.ReportService;
+import com.library.service.UserAdminService;
 import com.library.util.SessionManager;
 
 import javafx.animation.*;
@@ -14,16 +21,26 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.chart.*;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TableCell;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import javafx.stage.Modality;
 import javafx.util.Duration;
 import javafx.util.StringConverter;
 
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.ResultSet;
-import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -37,6 +54,10 @@ public class DashboardController implements Initializable {
     @FXML private Button     btnBooks;
     @FXML private Button     btnMembers;
     @FXML private Button     btnIssueReturn;
+    @FXML private Button     btnManageBranches;
+    @FXML private Button     btnManageLibrarians;
+    @FXML private Button     btnSystemSummary;
+    @FXML private HBox       superAdminActionsRow;
 
     // ── Header ────────────────────────────────────────────────────────
     @FXML private Label welcomeLabel;
@@ -64,6 +85,9 @@ public class DashboardController implements Initializable {
 
     // ── Services ──────────────────────────────────────────────────────
     private final ReportService reportService = new ReportService();
+    private final BranchService branchService = new BranchService();
+    private final UserAdminService userAdminService = new UserAdminService();
+    private final DashboardService dashboardService = new DashboardService();
     private Node dashboardCenter;
 
     @Override
@@ -73,7 +97,10 @@ public class DashboardController implements Initializable {
         var user = SessionManager.getCurrentUser();
         if (user != null) {
             welcomeLabel.setText(user.getUsername());
-            roleLabel.setText(user.getRole());
+            String branchText = user.getBranchId() != null
+                ? " • Branch " + user.getBranchId()
+                : " • All Branches";
+            roleLabel.setText(user.getRole() + branchText);
             avatarLabel.setText(
                 String.valueOf(user.getUsername().charAt(0)).toUpperCase()
             );
@@ -99,33 +126,32 @@ public class DashboardController implements Initializable {
         // ── Load stats + charts ───────────────────────────────────
         loadStats();
         loadCharts();
+        applySuperAdminVisibility();
 
         Platform.runLater(() -> dashboardCenter = mainPane.getCenter());
         setActiveButton(btnDashboard);
     }
 
+    private void applySuperAdminVisibility() {
+        boolean superAdmin = SessionManager.isSuperAdmin();
+        if (superAdminActionsRow != null) {
+            superAdminActionsRow.setManaged(superAdmin);
+            superAdminActionsRow.setVisible(superAdmin);
+        }
+        if (btnSystemSummary != null) {
+            btnSystemSummary.setManaged(superAdmin);
+            btnSystemSummary.setVisible(superAdmin);
+        }
+    }
+
     // ── Stats with animated counters ──────────────────────────────────
     private void loadStats() {
         try {
-            Connection conn = DatabaseConnection.getConnection();
-            Statement  stmt = conn.createStatement();
-
-            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM books");
-            if (rs.next()) animateCount(totalBooksLabel, rs.getInt(1));
-
-            rs = stmt.executeQuery(
-                "SELECT COUNT(*) FROM members WHERE active = 1");
-            if (rs.next()) animateCount(totalMembersLabel, rs.getInt(1));
-
-            rs = stmt.executeQuery(
-                "SELECT COUNT(*) FROM issue_records WHERE status = 'ISSUED'");
-            if (rs.next()) animateCount(issuedBooksLabel, rs.getInt(1));
-
-            rs = stmt.executeQuery("""
-                SELECT COUNT(*) FROM issue_records
-                WHERE status = 'ISSUED' AND due_date < DATE('now')
-            """);
-            if (rs.next()) animateCount(overdueLabel, rs.getInt(1));
+            DashboardStats stats = dashboardService.getStats();
+            animateCount(totalBooksLabel, stats.getTotalBooks());
+            animateCount(totalMembersLabel, stats.getTotalMembers());
+            animateCount(issuedBooksLabel, stats.getIssuedBooks());
+            animateCount(overdueLabel, stats.getOverdueBooks());
 
         } catch (Exception e) {
             System.err.println("Stats error: " + e.getMessage());
@@ -187,9 +213,12 @@ public class DashboardController implements Initializable {
                 SELECT COALESCE(category,'Other') AS category,
                        COUNT(*) AS total
                 FROM books
+                %s
                 GROUP BY category
                 ORDER BY total DESC
-            """);
+            """.formatted(SessionManager.isBranchScopedUser()
+                ? "WHERE branch_id = " + SessionManager.getCurrentBranchId()
+                : ""));
 
             var data = FXCollections.<PieChart.Data>observableArrayList();
             boolean hasData = false;
@@ -233,14 +262,20 @@ public class DashboardController implements Initializable {
 
                 ResultSet rs = conn.createStatement().executeQuery(
                     "SELECT COUNT(*) FROM issue_records " +
-                    "WHERE strftime('%Y-%m', issue_date) = '" + monthStr + "'"
+                    "WHERE strftime('%Y-%m', issue_date) = '" + monthStr + "'" +
+                    (SessionManager.isBranchScopedUser()
+                        ? " AND branch_id = " + SessionManager.getCurrentBranchId()
+                        : "")
                 );
                 issueSeries.getData().add(
                     new XYChart.Data<>(label, rs.next() ? rs.getInt(1) : 0));
 
                 rs = conn.createStatement().executeQuery(
                     "SELECT COUNT(*) FROM issue_records " +
-                    "WHERE strftime('%Y-%m', return_date) = '" + monthStr + "'"
+                    "WHERE strftime('%Y-%m', return_date) = '" + monthStr + "'" +
+                    (SessionManager.isBranchScopedUser()
+                        ? " AND branch_id = " + SessionManager.getCurrentBranchId()
+                        : "")
                 );
                 returnSeries.getData().add(
                     new XYChart.Data<>(label, rs.next() ? rs.getInt(1) : 0));
@@ -294,8 +329,11 @@ public class DashboardController implements Initializable {
                 SELECT COALESCE(member_type,'Student') AS type,
                        COUNT(*) AS total
                 FROM members WHERE active = 1
+                %s
                 GROUP BY member_type
-            """);
+            """.formatted(SessionManager.isBranchScopedUser()
+                ? "AND branch_id = " + SessionManager.getCurrentBranchId()
+                : ""));
 
             var data = FXCollections.<PieChart.Data>observableArrayList();
             int students = 0, staff = 0;
@@ -366,6 +404,275 @@ public class DashboardController implements Initializable {
             stage.setScene(scene);
             stage.setTitle("Library Management System — Login");
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    @FXML
+    private void handleManageBranches() {
+        if (!SessionManager.isSuperAdmin()) return;
+
+        TableView<BranchSummary> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<BranchSummary, String> nameCol = new TableColumn<>("Branch");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<BranchSummary, String> deptCol = new TableColumn<>("Department");
+        deptCol.setCellValueFactory(new PropertyValueFactory<>("department"));
+
+        TableColumn<BranchSummary, Integer> booksCol = new TableColumn<>("Books");
+        booksCol.setCellValueFactory(new PropertyValueFactory<>("totalBooks"));
+
+        TableColumn<BranchSummary, Integer> membersCol = new TableColumn<>("Members");
+        membersCol.setCellValueFactory(new PropertyValueFactory<>("totalMembers"));
+
+        TableColumn<BranchSummary, Integer> issuedCol = new TableColumn<>("Issued");
+        issuedCol.setCellValueFactory(new PropertyValueFactory<>("issuedBooks"));
+
+        TableColumn<BranchSummary, Integer> librariansCol = new TableColumn<>("Librarians");
+        librariansCol.setCellValueFactory(new PropertyValueFactory<>("librarians"));
+
+        table.getColumns().addAll(nameCol, deptCol, booksCol, membersCol, issuedCol, librariansCol);
+        table.getItems().setAll(branchService.getBranchSummaries());
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("Branch name");
+        TextField deptField = new TextField();
+        deptField.setPromptText("Department");
+        TextField codeField = new TextField();
+        codeField.setPromptText("Code (e.g. CSE)");
+        Label info = new Label();
+
+        Button addBtn = new Button("Add Branch");
+        Button removeBtn = new Button("Deactivate Branch");
+        Button closeBtn = new Button("Close");
+
+        addBtn.setOnAction(e -> {
+            String name = nameField.getText().trim();
+            String dept = deptField.getText().trim();
+            String code = codeField.getText().trim().toUpperCase();
+
+            if (name.isEmpty() || code.isEmpty()) {
+                info.setText("Branch name and code are required.");
+                return;
+            }
+            if (branchService.branchCodeExists(code)) {
+                info.setText("Branch code already exists.");
+                return;
+            }
+
+            boolean created = branchService.addBranch(name, dept, code);
+            if (created) {
+                info.setText("Branch created.");
+                nameField.clear();
+                deptField.clear();
+                codeField.clear();
+                table.getItems().setAll(branchService.getBranchSummaries());
+            } else {
+                info.setText("Failed to create branch.");
+            }
+        });
+
+        removeBtn.setOnAction(e -> {
+            BranchSummary selected = table.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                info.setText("Select a branch first.");
+                return;
+            }
+
+            if ("MAIN".equalsIgnoreCase(selected.getCode())) {
+                info.setText("MAIN branch cannot be deactivated.");
+                return;
+            }
+
+            boolean ok = branchService.deactivateBranch(selected.getId());
+            if (ok) {
+                info.setText("Branch deactivated.");
+                table.getItems().setAll(branchService.getBranchSummaries());
+            } else {
+                info.setText("Cannot deactivate: branch has linked data/users.");
+            }
+        });
+
+        VBox root = new VBox(10,
+            new Label("SuperAdmin: Branch Management"),
+            table,
+            new HBox(8, nameField, deptField, codeField),
+            new HBox(8, addBtn, removeBtn, closeBtn),
+            info
+        );
+        root.setStyle("-fx-padding: 16; -fx-background-color: white;");
+
+        Stage dialog = new Stage();
+        dialog.initOwner(mainPane.getScene().getWindow());
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("Manage Branches");
+        dialog.setScene(new Scene(root, 980, 520));
+
+        closeBtn.setOnAction(e -> dialog.close());
+        dialog.showAndWait();
+
+        loadStats();
+        loadCharts();
+    }
+
+    @FXML
+    private void handleManageLibrarians() {
+        if (!SessionManager.isSuperAdmin()) return;
+
+        TableView<User> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<User, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
+
+        TableColumn<User, String> userCol = new TableColumn<>("Username");
+        userCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+
+        TableColumn<User, Integer> branchCol = new TableColumn<>("Branch ID");
+        branchCol.setCellValueFactory(new PropertyValueFactory<>("branchId"));
+
+        TableColumn<User, String> roleCol = new TableColumn<>("Role");
+        roleCol.setCellValueFactory(new PropertyValueFactory<>("role"));
+
+        table.getColumns().addAll(idCol, userCol, branchCol, roleCol);
+        table.getItems().setAll(userAdminService.getLibrarians());
+
+        TextField usernameField = new TextField();
+        usernameField.setPromptText("New librarian username");
+        PasswordField passwordField = new PasswordField();
+        passwordField.setPromptText("Temporary password");
+        ComboBox<Branch> branchBox = new ComboBox<>();
+        branchBox.getItems().setAll(branchService.getAllBranches());
+        branchBox.setPromptText("Assign branch");
+        Label info = new Label();
+
+        Button createBtn = new Button("Create Librarian");
+        Button reassignBtn = new Button("Reassign Branch");
+        Button deleteBtn = new Button("Delete Librarian");
+        Button closeBtn = new Button("Close");
+
+        createBtn.setOnAction(e -> {
+            String username = usernameField.getText().trim();
+            String password = passwordField.getText().trim();
+            Branch branch = branchBox.getValue();
+
+            if (username.isEmpty() || password.length() < 6 || branch == null) {
+                info.setText("Username, branch and password(>=6 chars) are required.");
+                return;
+            }
+            if (userAdminService.usernameExists(username)) {
+                info.setText("Username already exists.");
+                return;
+            }
+
+            boolean ok = userAdminService.createLibrarian(username, password, branch.getId());
+            if (ok) {
+                info.setText("Librarian account created.");
+                usernameField.clear();
+                passwordField.clear();
+                table.getItems().setAll(userAdminService.getLibrarians());
+            } else {
+                info.setText("Failed to create librarian account.");
+            }
+        });
+
+        reassignBtn.setOnAction(e -> {
+            User selected = table.getSelectionModel().getSelectedItem();
+            Branch branch = branchBox.getValue();
+            if (selected == null || branch == null) {
+                info.setText("Select librarian and target branch.");
+                return;
+            }
+            boolean ok = userAdminService.reassignLibrarian(selected.getId(), branch.getId());
+            info.setText(ok ? "Librarian reassigned." : "Reassign failed.");
+            if (ok) table.getItems().setAll(userAdminService.getLibrarians());
+        });
+
+        deleteBtn.setOnAction(e -> {
+            User selected = table.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                info.setText("Select a librarian first.");
+                return;
+            }
+            boolean ok = userAdminService.deleteLibrarian(selected.getId());
+            info.setText(ok ? "Librarian removed." : "Delete failed.");
+            if (ok) table.getItems().setAll(userAdminService.getLibrarians());
+        });
+
+        VBox root = new VBox(10,
+            new Label("SuperAdmin: Librarian Management"),
+            table,
+            new HBox(8, usernameField, passwordField, branchBox),
+            new HBox(8, createBtn, reassignBtn, deleteBtn, closeBtn),
+            info
+        );
+        root.setStyle("-fx-padding: 16; -fx-background-color: white;");
+
+        Stage dialog = new Stage();
+        dialog.initOwner(mainPane.getScene().getWindow());
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("Manage Librarians");
+        dialog.setScene(new Scene(root, 960, 520));
+
+        closeBtn.setOnAction(e -> dialog.close());
+        dialog.showAndWait();
+    }
+
+    @FXML
+    private void handleSystemSummary() {
+        if (!SessionManager.isSuperAdmin()) return;
+
+        TableView<BranchSummary> table = new TableView<>();
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<BranchSummary, String> branchCol = new TableColumn<>("Branch");
+        branchCol.setCellValueFactory(new PropertyValueFactory<>("name"));
+
+        TableColumn<BranchSummary, String> deptCol = new TableColumn<>("Department");
+        deptCol.setCellValueFactory(new PropertyValueFactory<>("department"));
+
+        TableColumn<BranchSummary, Integer> booksCol = new TableColumn<>("Books");
+        booksCol.setCellValueFactory(new PropertyValueFactory<>("totalBooks"));
+
+        TableColumn<BranchSummary, Integer> membersCol = new TableColumn<>("Members");
+        membersCol.setCellValueFactory(new PropertyValueFactory<>("totalMembers"));
+
+        TableColumn<BranchSummary, Integer> issuedCol = new TableColumn<>("Issued");
+        issuedCol.setCellValueFactory(new PropertyValueFactory<>("issuedBooks"));
+
+        TableColumn<BranchSummary, Integer> librariansCol = new TableColumn<>("Librarians");
+        librariansCol.setCellValueFactory(new PropertyValueFactory<>("librarians"));
+
+        table.getColumns().addAll(branchCol, deptCol, booksCol, membersCol, issuedCol, librariansCol);
+        table.getItems().setAll(branchService.getBranchSummaries());
+
+        int totalBooks = table.getItems().stream().mapToInt(BranchSummary::getTotalBooks).sum();
+        int totalMembers = table.getItems().stream().mapToInt(BranchSummary::getTotalMembers).sum();
+        int totalIssued = table.getItems().stream().mapToInt(BranchSummary::getIssuedBooks).sum();
+
+        Label totals = new Label(
+            "Network Totals  |  Books: " + totalBooks +
+            "  Members: " + totalMembers +
+            "  Issued: " + totalIssued
+        );
+
+        Button closeBtn = new Button("Close");
+        VBox root = new VBox(10,
+            new Label("SuperAdmin: Consolidated Branch Monitoring"),
+            table,
+            totals,
+            closeBtn
+        );
+        root.setStyle("-fx-padding: 16; -fx-background-color: white;");
+
+        Stage dialog = new Stage();
+        dialog.initOwner(mainPane.getScene().getWindow());
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("System Summary");
+        dialog.setScene(new Scene(root, 900, 520));
+
+        closeBtn.setOnAction(e -> dialog.close());
+        dialog.showAndWait();
     }
 
     // ── Reports ───────────────────────────────────────────────────────
