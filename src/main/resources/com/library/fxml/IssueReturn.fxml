@@ -80,13 +80,13 @@
 
                         <!-- Book Search -->
                         <VBox spacing="6">
-                            <Label text="Book Title or ISBN *"
+                            <Label text="Book Title or Accession Number *"
                                    style="-fx-font-weight: bold;
                                           -fx-font-size: 13px;
                                           -fx-text-fill: #333;"/>
                             <HBox spacing="10">
                                 <TextField fx:id="bookSearchField"
-                                           promptText="e.g. Harry Potter or ISBN"
+                                           promptText="e.g. Harry Potter or ACC001"
                                            prefHeight="38"
                                            HBox.hgrow="ALWAYS"
                                            styleClass="search-field"/>
@@ -210,6 +210,10 @@
                                       -fx-font-weight: bold;
                                       -fx-text-fill: #1a1a2e;"
                                HBox.hgrow="ALWAYS"/>
+                        <Button text="🔁 Renew Selected"
+                                prefHeight="36"
+                                styleClass="btn-secondary"
+                                onAction="#handleRenewSelectedIssued"/>
                         <TextField fx:id="issuedSearchField"
                                    promptText="Search issued books..."
                                    styleClass="search-field"
@@ -257,7 +261,7 @@
                   style="-fx-padding: 20;
                          -fx-background-color: #eef1fb;">
 
-                <!-- Search by member -->
+              <!-- Search by accession number -->
                 <VBox spacing="10"
                       style="-fx-background-color: white;
                              -fx-background-radius: 14;
@@ -265,7 +269,7 @@
                              -fx-effect: dropshadow(gaussian,
                                rgba(67,97,238,0.07),14,0,0,4);">
 
-                    <Label text="🔍  Find Member's Issued Books"
+                  <Label text="🔍  Find Issued Book by Accession Number"
                            style="-fx-font-size: 14px;
                                   -fx-font-weight: bold;
                                   -fx-text-fill: #1a1a2e;"/>
@@ -273,7 +277,7 @@
 
                     <HBox spacing="10" alignment="CENTER_LEFT">
                         <TextField fx:id="returnSearchField"
-                                   promptText="Enter Member ID or Name..."
+                               promptText="Enter accession number..."
                                    styleClass="search-field"
                                    prefWidth="340"
                                    prefHeight="40"/>
@@ -282,6 +286,11 @@
                                 prefWidth="120"
                                 styleClass="btn-primary"
                                 onAction="#handleSearchReturn"/>
+                     <Button text="📥 Return"
+                            prefHeight="40"
+                            prefWidth="120"
+                            styleClass="btn-primary"
+                            onAction="#handleReturnSelected"/>
                         <Button text="Show All"
                                 prefHeight="40"
                                 prefWidth="100"
@@ -298,7 +307,7 @@
                              -fx-effect: dropshadow(gaussian,
                                rgba(67,97,238,0.07),14,0,0,4);">
 
-                    <Label text="📚  Select a record and click Return"
+                    <Label text="📚  Select a record, then click Return"
                            style="-fx-font-size: 13px;
                                   -fx-text-fill: #a0aec0;"/>
 
@@ -323,8 +332,6 @@
                                          text="Due Date" prefWidth="100"/>
                             <TableColumn fx:id="colReturnFine"
                                          text="Fine (Rs.)" prefWidth="100"/>
-                            <TableColumn fx:id="colReturnAction"
-                                         text="Action" prefWidth="120"/>
                         </columns>
                         <placeholder>
                             <Label text="Search for a member to see their issued books."

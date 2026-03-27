@@ -121,6 +121,45 @@ public class BookService {
         return searchBooks("");
     }
 
+    // ── Search books for issuing: title + accession only (no ISBN) ───
+    public List<Book> searchBooksForIssue(String keyword) {
+        List<Book> books = new ArrayList<>();
+
+        String sql = """
+            SELECT id, title, author, isbn, category,
+                   total_copies, available_copies,
+                   accession_number, classification_number,
+                   cutter_number, edition, publisher,
+                   place_of_publication, year_of_publication,
+                   number_of_pages
+            FROM books
+            WHERE (
+                    title            LIKE ?
+                OR  accession_number LIKE ?
+            )
+            %s
+            ORDER BY title ASC
+        """;
+        String branchFilter = BranchScope.isScoped() ? "AND branch_id = ?" : "";
+        sql = sql.formatted(branchFilter);
+
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            String p = "%" + keyword + "%";
+            stmt.setString(1, p);
+            stmt.setString(2, p);
+            BranchScope.bind(stmt, 3);
+
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) books.add(mapBook(rs));
+        } catch (SQLException e) {
+            System.err.println("Issue search failed: " + e.getMessage());
+        }
+
+        return books;
+    }
+
     // ── Search Books (with range-based accession search) ──────────────
     public List<Book> searchBooks(String keyword) {
         List<Book> books = new ArrayList<>();
@@ -331,6 +370,26 @@ public class BookService {
             return prefix + startNum + " → " + prefix + endNum;
         } catch (NumberFormatException e) {
             return start;
+        }
+    }
+
+    public Book getBookById(int bookId) {
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "SELECT id, title, author, isbn, category, " +
+                    "total_copies, available_copies, accession_number, " +
+                    "classification_number, cutter_number, edition, publisher, " +
+                    "place_of_publication, year_of_publication, number_of_pages " +
+                    "FROM books WHERE id = ?" + BranchScope.andClause("branch_id")
+                );
+            stmt.setInt(1, bookId);
+            BranchScope.bind(stmt, 2);
+            ResultSet rs = stmt.executeQuery();
+            return rs.next() ? mapBook(rs) : null;
+        } catch (SQLException e) {
+            System.err.println("Fetch book by id failed: " + e.getMessage());
+            return null;
         }
     }
 

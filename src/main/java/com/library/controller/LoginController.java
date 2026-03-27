@@ -52,11 +52,14 @@ public class LoginController {
 
                 if (passwordMatch) {
                     String role = rs.getString("role");
+                    String normalizedRole = "SUPER_ADMIN".equals(role)
+                        ? "SUPERADMIN"
+                        : role;
                     Integer branchId = rs.getObject("branch_id") != null
                         ? rs.getInt("branch_id")
                         : null;
 
-                    if (("ADMIN".equals(role) || "LIBRARIAN".equals(role))
+                        if (("ADMIN".equals(normalizedRole) || "LIBRARIAN".equals(normalizedRole))
                             && branchId == null) {
                         showError("Access denied: librarian account is not assigned to a branch.");
                         return;
@@ -66,13 +69,13 @@ public class LoginController {
                     User user = new User(
                         rs.getInt("id"),
                         rs.getString("username"),
-                        role,
+                        normalizedRole,
                         branchId
                     );
                     SessionManager.setCurrentUser(user);
                     System.out.println("✓ Logged in as: " + user);
 
-                    loadDashboard();
+                    loadDashboard(normalizedRole);
                 } else {
                     showError("Incorrect password. Please try again.");
                 }
@@ -86,15 +89,33 @@ public class LoginController {
         }
     }
 
-    private void loadDashboard() {
+    private void loadDashboard(String role) {
         try {
+            String fxmlFile;
+            String title;
+            
+            // Navigate based on user role
+            if ("SUPERADMIN".equals(role) || "SUPER_ADMIN".equals(role)) {
+                fxmlFile = "/com/library/fxml/SuperAdminDashboard.fxml";
+                title = "Library Management System — SuperAdmin Dashboard";
+            } else {
+                // ADMIN or LIBRARIAN
+                fxmlFile = "/com/library/fxml/Dashboard.fxml";
+                title = "Library Management System — Dashboard";
+            }
+            
             FXMLLoader loader = new FXMLLoader(
-                getClass().getResource("/com/library/fxml/Dashboard.fxml")
+                getClass().getResource(fxmlFile)
             );
             Scene scene = new Scene(loader.load(), 1100, 680);
             scene.getStylesheets().add(
                 getClass().getResource("/com/library/css/style.css").toExternalForm()
             );
+            if ("SUPERADMIN".equals(role) || "SUPER_ADMIN".equals(role)) {
+                scene.getStylesheets().add(
+                    getClass().getResource("/com/library/css/superadmin.css").toExternalForm()
+                );
+            }
 
             // Get current stage and switch scene
             Stage stage = (Stage) usernameField.getScene().getWindow();
@@ -102,7 +123,7 @@ public class LoginController {
             stage.setHeight(680);
             stage.setResizable(true);
             stage.setScene(scene);
-            stage.setTitle("Library Management System — Dashboard");
+            stage.setTitle(title);
 
         } catch (Exception e) {
             showError("Failed to load dashboard: " + e.getMessage());

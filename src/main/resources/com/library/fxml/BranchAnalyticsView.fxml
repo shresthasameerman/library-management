@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.chart.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox spacing="15" style="-fx-padding: 15;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.library.controller.BranchAnalyticsController">
+    
+    <!-- Branch Selection -->
+    <HBox spacing="15" alignment="CENTER_LEFT">
+        <Label text="Select Branch:" style="-fx-font-weight: bold;"/>
+        <ComboBox fx:id="branchCombo" prefWidth="200" onAction="#updateAnalytics"/>
+        <Button text="All Branches" onAction="#showAllBranches"/>
+    </HBox>
+
+    <!-- Branch Statistics Cards -->
+    <HBox spacing="20" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-border-radius: 5;">
+        <VBox spacing="5" style="-fx-border-color: #3498db; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: white;">
+            <Label text="Total Books" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalBooksLabel" text="0" style="-fx-font-size: 18; -fx-text-fill: #3498db;"/>
+        </VBox>
+        <VBox spacing="5" style="-fx-border-color: #2ecc71; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: white;">
+            <Label text="Available Books" style="-fx-font-weight: bold;"/>
+            <Label fx:id="availableBooksLabel" text="0" style="-fx-font-size: 18; -fx-text-fill: #2ecc71;"/>
+        </VBox>
+        <VBox spacing="5" style="-fx-border-color: #e74c3c; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: white;">
+            <Label text="Issued Books" style="-fx-font-weight: bold;"/>
+            <Label fx:id="issuedBooksLabel" text="0" style="-fx-font-size: 18; -fx-text-fill: #e74c3c;"/>
+        </VBox>
+        <VBox spacing="5" style="-fx-border-color: #f39c12; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: white;">
+            <Label text="Total Members" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalMembersLabel" text="0" style="-fx-font-size: 18; -fx-text-fill: #f39c12;"/>
+        </VBox>
+    </HBox>
+
+    <!-- Charts Container with Scroll -->
+    <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+        <VBox spacing="20" style="-fx-padding: 10;">
+            
+            <!-- Issue Trends Chart -->
+            <VBox spacing="10">
+                <Label text="Issue Trends Over Time" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                <LineChart fx:id="issueTrendChart" title="Books Issued Per Month" createSymbols="false" prefHeight="300" prefWidth="600">
+                    <xAxis>
+                        <CategoryAxis fx:id="issueTrendXAxis" label="Month" />
+                    </xAxis>
+                    <yAxis>
+                        <NumberAxis fx:id="issueTrendYAxis" label="Books Issued" />
+                    </yAxis>
+                </LineChart>
+            </VBox>
+
+            <!-- Return Trends Chart -->
+            <VBox spacing="10">
+                <Label text="Return Trends Over Time" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                <LineChart fx:id="returnTrendChart" title="Books Returned Per Month" createSymbols="false" prefHeight="300" prefWidth="600">
+                    <xAxis>
+                        <CategoryAxis fx:id="returnTrendXAxis" label="Month" />
+                    </xAxis>
+                    <yAxis>
+                        <NumberAxis fx:id="returnTrendYAxis" label="Books Returned" />
+                    </yAxis>
+                </LineChart>
+            </VBox>
+
+            <!-- Overdue Trends -->
+            <VBox spacing="10">
+                <Label text="Overdue Books Trend" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                <BarChart fx:id="overdueTrendChart" title="Overdue Books Per Month" prefHeight="300" prefWidth="600">
+                    <xAxis>
+                        <CategoryAxis fx:id="overdueTrendXAxis" label="Month" />
+                    </xAxis>
+                    <yAxis>
+                        <NumberAxis fx:id="overdueTrendYAxis" label="Overdue Count" />
+                    </yAxis>
+                </BarChart>
+            </VBox>
+
+            <!-- Category Distribution -->
+            <HBox spacing="20">
+                <VBox spacing="10" HBox.hgrow="ALWAYS">
+                    <Label text="Books by Category" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                    <PieChart fx:id="categoryChart" prefHeight="300"/>
+                </VBox>
+                <VBox spacing="10" HBox.hgrow="ALWAYS">
+                    <Label text="Member Distribution" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                    <PieChart fx:id="memberTypeChart" prefHeight="300"/>
+                </VBox>
+            </HBox>
+
+            <!-- Branch Comparison -->
+            <VBox spacing="10">
+                <Label text="Branch Performance Comparison" style="-fx-font-weight: bold; -fx-font-size: 13;"/>
+                <BarChart fx:id="branchComparisonChart" title="Issues vs Returns by Branch" prefHeight="300" prefWidth="600">
+                    <xAxis>
+                        <CategoryAxis fx:id="branchComparisonXAxis" label="Branch" />
+                    </xAxis>
+                    <yAxis>
+                        <NumberAxis fx:id="branchComparisonYAxis" label="Book Count" />
+                    </yAxis>
+                </BarChart>
+            </VBox>
+        </VBox>
+    </ScrollPane>
+
+    <!-- Export Options -->
+    <HBox spacing="10">
+        <Button text="Export Analytics" onAction="#exportAnalytics"/>
+        <Button text="Generate Report" onAction="#generateReport"/>
+    </HBox>
+</VBox>

@@ -65,7 +65,6 @@ public class IssueController implements Initializable {
     @FXML private TableColumn<IssueRecord,String>  colReturnIssueDate;
     @FXML private TableColumn<IssueRecord,String>  colReturnDueDate;
     @FXML private TableColumn<IssueRecord,String>  colReturnFine;
-    @FXML private TableColumn<IssueRecord,Void>    colReturnAction;
 
     // ── Overdue Tab ───────────────────────────────────────────────────
     @FXML private TableView<IssueRecord>           overdueTable;
@@ -225,26 +224,6 @@ public class IssueController implements Initializable {
                     setText("No fine");
                     setStyle("-fx-text-fill: #2dc653;");
                 }
-            }
-        });
-
-        // Return button column
-        colReturnAction.setCellFactory(col -> new TableCell<>() {
-            private final Button returnBtn = new Button("📥 Return");
-            {
-                returnBtn.setStyle(
-                    "-fx-background-color: #4361ee; -fx-text-fill: white;" +
-                    "-fx-font-size: 11px; -fx-background-radius: 4;" +
-                    "-fx-cursor: hand; -fx-padding: 5 10 5 10;");
-                returnBtn.setOnAction(e -> {
-                    IssueRecord rec = getTableView().getItems().get(getIndex());
-                    handleReturnBook(rec);
-                });
-            }
-            @Override
-            protected void updateItem(Void item, boolean empty) {
-                super.updateItem(item, empty);
-                setGraphic(empty ? null : returnBtn);
             }
         });
 
@@ -451,12 +430,49 @@ public class IssueController implements Initializable {
     private void handleFindBook() {
         String keyword = bookSearchField.getText().trim();
         if (keyword.isEmpty()) {
-            bookInfoLabel.setText("⚠ Enter book title or ISBN.");
+            bookInfoLabel.setText("⚠ Enter book title or accession number.");
             bookInfoLabel.setStyle("-fx-text-fill: #e63946;");
             return;
         }
 
-        List<Book> results = bookService.searchBooks(keyword);
+        BookCopyService copyService = new BookCopyService();
+
+        // Accession-first search: if user enters a copy accession, preselect that copy.
+        BookCopy accessionMatch = copyService.getCopyByAccession(keyword);
+        if (accessionMatch != null && "AVAILABLE".equalsIgnoreCase(accessionMatch.getStatus())) {
+            Book byAccession = bookService.getBookById(accessionMatch.getBookId());
+            if (byAccession != null) {
+                selectedBook = byAccession;
+                List<BookCopy> copies = copyService.getAvailableCopies(selectedBook.getId());
+
+                if (copies.isEmpty()) {
+                    bookInfoLabel.setText("❌ No available copies.");
+                    bookInfoLabel.setStyle("-fx-text-fill: #e63946;");
+                    selectedCopy = null;
+                    copyComboBox.setVisible(false);
+                    return;
+                }
+
+                copyComboBox.setItems(FXCollections.observableArrayList(copies));
+                BookCopy preselected = copies.stream()
+                    .filter(c -> c.getAccessionNumber().equalsIgnoreCase(accessionMatch.getAccessionNumber()))
+                    .findFirst()
+                    .orElse(copies.get(0));
+                copyComboBox.setValue(preselected);
+                copyComboBox.setVisible(true);
+                selectedCopy = preselected;
+
+                bookInfoLabel.setText(
+                    "✅ " + selectedBook.getTitle() +
+                    " | Selected accession: " + preselected.getAccessionNumber()
+                );
+                bookInfoLabel.setStyle("-fx-text-fill: #2dc653;");
+                return;
+            }
+        }
+
+        // Fallback search by title (and book accession range), excluding ISBN-based search.
+        List<Book> results = bookService.searchBooksForIssue(keyword);
         List<Book> available = results.stream()
             .filter(b -> b.getAvailableCopies() > 0)
             .toList();
@@ -470,10 +486,7 @@ public class IssueController implements Initializable {
         } else {
             selectedBook = available.get(0);
 
-            // Load available copies
-            BookCopyService copyService = new BookCopyService();
-            List<BookCopy> copies = copyService.getAvailableCopies(
-                selectedBook.getId());
+            List<BookCopy> copies = copyService.getAvailableCopies(selectedBook.getId());
 
             if (copies.isEmpty()) {
                 bookInfoLabel.setText("❌ No available copies.");
@@ -483,9 +496,7 @@ public class IssueController implements Initializable {
                 return;
             }
 
-            // Populate copy dropdown
-            copyComboBox.setItems(
-                FXCollections.observableArrayList(copies));
+            copyComboBox.setItems(FXCollections.observableArrayList(copies));
             copyComboBox.setValue(copies.get(0));
             copyComboBox.setVisible(true);
             selectedCopy = copies.get(0);
@@ -556,11 +567,44 @@ public class IssueController implements Initializable {
         issuedList.setAll(results);
     }
 
+    @FXML
+    private void handleRenewSelectedIssued() {
+        IssueRecord selected = issuedTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertHelper.showError("No Selection", "Please select an issued record to renew.");
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Renew Issue");
+        confirm.setHeaderText("Renew: " + selected.getBookTitle());
+        confirm.setContentText(
+            "Accession: " + selected.getAccessionNumber() + "\n" +
+            "Current Due Date: " + selected.getDueDate() + "\n\n" +
+            "Extend by " + issueService.getLoanDays() + " days?"
+        );
+
+        confirm.showAndWait().ifPresent(result -> {
+            if (result == ButtonType.OK) {
+                boolean ok = issueService.renewIssue(selected.getId(), issueService.getLoanDays());
+                if (ok) {
+                    loadIssuedBooks();
+                    loadReturnBooks();
+                    loadOverdueBooks();
+                    updateStats();
+                    AlertHelper.showSuccess("Renewed", "Due date extended successfully.");
+                } else {
+                    AlertHelper.showError("Renew Failed", "Could not renew selected record.");
+                }
+            }
+        });
+    }
+
     // ── Return Tab: Search ────────────────────────────────────────────
     @FXML
     private void handleSearchReturn() {
-        String keyword = returnSearchField.getText().trim();
-        List<IssueRecord> results = issueService.getIssuedBooks(keyword);
+        String accessionNumber = returnSearchField.getText().trim();
+        List<IssueRecord> results = issueService.getIssuedBooksByAccession(accessionNumber);
         returnList.setAll(results);
     }
 
@@ -569,6 +613,16 @@ public class IssueController implements Initializable {
         returnSearchField.clear();
         List<IssueRecord> results = issueService.getIssuedBooks("");
         returnList.setAll(results);
+    }
+
+    @FXML
+    private void handleReturnSelected() {
+        IssueRecord selected = returnTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            AlertHelper.showError("No Selection", "Please select a record to return.");
+            return;
+        }
+        handleReturnBook(selected);
     }
 
     // ── Process Return ────────────────────────────────────────────────
@@ -613,8 +667,12 @@ public class IssueController implements Initializable {
                     updateStats();
 
                     // Refresh return table
-                    String kw = returnSearchField.getText().trim();
-                    returnList.setAll(issueService.getIssuedBooks(kw));
+                    String accessionNumber = returnSearchField.getText().trim();
+                    if (accessionNumber.isEmpty()) {
+                        returnList.setAll(issueService.getIssuedBooks(""));
+                    } else {
+                        returnList.setAll(issueService.getIssuedBooksByAccession(accessionNumber));
+                    }
 
                     String msg = fine > 0
                         ? "Book returned.\nFine collected: Rs. " + (int) fine

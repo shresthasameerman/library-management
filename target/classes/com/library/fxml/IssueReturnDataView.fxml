@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<VBox spacing="15" style="-fx-padding: 15;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.library.controller.IssueReturnDataController">
+    <!-- Filters Section -->
+    <HBox spacing="15" style="-fx-border-color: #bdc3c7; -fx-border-radius: 5; -fx-padding: 10;">
+        <Label text="Filters:" style="-fx-font-weight: bold;"/>
+        
+        <VBox spacing="5">
+            <Label text="Branch"/>
+            <ComboBox fx:id="branchFilterCombo" prefWidth="150"/>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Status"/>
+            <ComboBox fx:id="statusFilterCombo" prefWidth="150">
+                <items>
+                    <FXCollections fx:factory="observableArrayList">
+                        <String fx:value="All"/>
+                        <String fx:value="ISSUED"/>
+                        <String fx:value="RETURNED"/>
+                        <String fx:value="OVERDUE"/>
+                    </FXCollections>
+                </items>
+            </ComboBox>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="From Date"/>
+            <DatePicker fx:id="fromDatePicker"/>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="To Date"/>
+            <DatePicker fx:id="toDatePicker"/>
+        </VBox>
+
+        <VBox spacing="5" prefWidth="150">
+            <Label text="Member Name"/>
+            <TextField fx:id="memberSearchField" promptText="Search member..."/>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text=" "/>
+            <HBox spacing="10">
+                <Button text="Filter" onAction="#applyFilters"/>
+                <Button text="Reset" onAction="#resetFilters"/>
+            </HBox>
+        </VBox>
+    </HBox>
+
+    <!-- Statistics Panel -->
+    <HBox spacing="20" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-border-radius: 5;">
+        <VBox spacing="5">
+            <Label text="Total Issues" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalIssuesLabel" text="0" style="-fx-font-size: 16;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="Total Returns" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalReturnsLabel" text="0" style="-fx-font-size: 16;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="Overdue Books" style="-fx-font-weight: bold; -fx-text-fill: #e74c3c;"/>
+            <Label fx:id="overdueLabel" text="0" style="-fx-font-size: 16; -fx-text-fill: #e74c3c;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="Total Fines" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalFinesLabel" text="Rs. 0" style="-fx-font-size: 16;"/>
+        </VBox>
+    </HBox>
+
+    <!-- Data Table -->
+    <Label text="Issue/Return Records" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <TableView fx:id="issueReturnTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn text="Accession No." prefWidth="100" fx:id="accessionColumn"/>
+            <TableColumn text="Book Title" prefWidth="150" fx:id="titleColumn"/>
+            <TableColumn text="Member" prefWidth="120" fx:id="memberColumn"/>
+            <TableColumn text="Branch" prefWidth="100" fx:id="branchColumn"/>
+            <TableColumn text="Issue Date" prefWidth="100" fx:id="issueDateColumn"/>
+            <TableColumn text="Due Date" prefWidth="100" fx:id="dueDateColumn"/>
+            <TableColumn text="Return Date" prefWidth="100" fx:id="returnDateColumn"/>
+            <TableColumn text="Fine (Rs.)" prefWidth="80" fx:id="fineColumn"/>
+            <TableColumn text="Status" prefWidth="100" fx:id="statusColumn"/>
+        </columns>
+    </TableView>
+
+    <!-- Export Button -->
+    <HBox spacing="10">
+        <Button text="Export to CSV" onAction="#exportToCSV"/>
+        <Button text="Export to PDF" onAction="#exportToPDF"/>
+        <Button text="Print" onAction="#printData"/>
+    </HBox>
+</VBox>

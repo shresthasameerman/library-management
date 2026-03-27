@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<VBox spacing="15" style="-fx-padding: 15;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.library.controller.ReportsController">
+    
+    <!-- Report Type Selection -->
+    <VBox spacing="10" style="-fx-border-color: #3498db; -fx-border-radius: 5; -fx-padding: 10; -fx-background-color: #ecf0f1;">
+        <Label text="Generate Custom Reports" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+        
+        <HBox spacing="20">
+            <VBox spacing="5">
+                <Label text="Report Type:" style="-fx-font-weight: bold;"/>
+                <ComboBox fx:id="reportTypeCombo" prefWidth="200">
+                    <items>
+                        <FXCollections fx:factory="observableArrayList">
+                            <String fx:value="Issue/Return Summary"/>
+                            <String fx:value="Branch Performance"/>
+                            <String fx:value="Member Activity"/>
+                            <String fx:value="Fine Collection"/>
+                            <String fx:value="Overdue Books"/>
+                            <String fx:value="Category Distribution"/>
+                            <String fx:value="Admin Activity"/>
+                            <String fx:value="Complete System Report"/>
+                        </FXCollections>
+                    </items>
+                </ComboBox>
+            </VBox>
+
+            <VBox spacing="5">
+                <Label text="Branch:" style="-fx-font-weight: bold;"/>
+                <ComboBox fx:id="reportBranchCombo" prefWidth="200"/>
+            </VBox>
+
+            <VBox spacing="5">
+                <Label text="Format:" style="-fx-font-weight: bold;"/>
+                <ComboBox fx:id="reportFormatCombo" prefWidth="150">
+                    <items>
+                        <FXCollections fx:factory="observableArrayList">
+                            <String fx:value="CSV"/>
+                            <String fx:value="Excel"/>
+                            <String fx:value="PDF"/>
+                            <String fx:value="JSON"/>
+                        </FXCollections>
+                    </items>
+                </ComboBox>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="20">
+            <VBox spacing="5">
+                <Label text="From Date:" style="-fx-font-weight: bold;"/>
+                <DatePicker fx:id="reportFromDate"/>
+            </VBox>
+
+            <VBox spacing="5">
+                <Label text="To Date:" style="-fx-font-weight: bold;"/>
+                <DatePicker fx:id="reportToDate"/>
+            </VBox>
+
+            <VBox spacing="5">
+                <Label text=" "/>
+                <HBox spacing="10">
+                    <Button text="Generate Report" onAction="#generateReport" style="-fx-font-size: 11; -fx-padding: 8;"/>
+                    <Button text="Preview" onAction="#previewReport" style="-fx-font-size: 11; -fx-padding: 8;"/>
+                </HBox>
+            </VBox>
+        </HBox>
+    </VBox>
+
+    <!-- Pre-defined Reports -->
+    <Label text="Quick Report Templates" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <FlowPane hgap="10" vgap="10">
+        <Button text="Today's Issues" onAction="#generateTodayIssues" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="This Week Summary" onAction="#generateWeekSummary" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="This Month Summary" onAction="#generateMonthSummary" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="Overdue Alert" onAction="#generateOverdueAlert" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="Fine Collection Report" onAction="#generateFineReport" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="Admin Activity Report" onAction="#generateAdminReport" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="Member Statistics" onAction="#generateMemberStats" style="-fx-font-size: 11; -fx-padding: 10;"/>
+        <Button text="Inventory Report" onAction="#generateInventoryReport" style="-fx-font-size: 11; -fx-padding: 10;"/>
+    </FlowPane>
+
+    <!-- Report Preview -->
+    <Label text="Report Preview &amp; Download" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <TableView fx:id="reportPreviewTable" VBox.vgrow="ALWAYS" prefHeight="300">
+        <!-- Columns will be dynamically added based on report type -->
+    </TableView>
+
+    <!-- Generated Reports History -->
+    <Label text="Recently Generated Reports" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <TableView fx:id="reportHistoryTable" prefHeight="150">
+        <columns>
+            <TableColumn text="Report Name" prefWidth="200" fx:id="reportNameColumn"/>
+            <TableColumn text="Type" prefWidth="150" fx:id="reportTypeColumn"/>
+            <TableColumn text="Generated By" prefWidth="120" fx:id="generatedByColumn"/>
+            <TableColumn text="Generated Date" prefWidth="150" fx:id="generatedDateColumn"/>
+            <TableColumn text="File Size" prefWidth="100" fx:id="fileSizeColumn"/>
+            <TableColumn text="Action" prefWidth="100" fx:id="downloadColumn"/>
+        </columns>
+    </TableView>
+
+    <!-- Summary Statistics -->
+    <HBox spacing="20" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-border-radius: 5;">
+        <VBox spacing="5">
+            <Label text="Total Reports Generated" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalReportsLabel" text="0" style="-fx-font-size: 16;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="This Month" style="-fx-font-weight: bold;"/>
+            <Label fx:id="monthlyReportsLabel" text="0" style="-fx-font-size: 16;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="Total Downloads" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalDownloadsLabel" text="0" style="-fx-font-size: 16;"/>
+        </VBox>
+    </HBox>
+</VBox>

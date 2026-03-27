@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<VBox spacing="15" style="-fx-padding: 15;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.library.controller.SystemManagementController">
+    
+    <!-- Database Management Section -->
+    <VBox spacing="10" style="-fx-border-color: #3498db; -fx-border-radius: 5; -fx-padding: 15; -fx-background-color: #ecf0f1;">
+        <Label text="Database Management" style="-fx-font-weight: bold; -fx-font-size: 14; -fx-text-fill: #2c3e50;"/>
+        
+        <HBox spacing="15">
+            <VBox spacing="5">
+                <Label text="Database Path"/>
+                <TextField fx:id="dbPathField" editable="false" prefWidth="400"/>
+            </VBox>
+            <VBox spacing="5">
+                <Label text="Database Size"/>
+                <Label fx:id="dbSizeLabel" text="Calculating..."/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="10">
+            <Button text="Backup Database" onAction="#backupDatabase" style="-fx-padding: 10;"/>
+            <Button text="Restore Backup" onAction="#restoreBackup" style="-fx-padding: 10;"/>
+            <Button text="Database Health Check" onAction="#checkDatabaseHealth" style="-fx-padding: 10;"/>
+            <Button text="Optimize Database" onAction="#optimizeDatabase" style="-fx-padding: 10;"/>
+        </HBox>
+
+        <VBox spacing="5" style="-fx-border-color: #e74c3c; -fx-border-radius: 3; -fx-padding: 10;">
+            <Label text="Dangerous Actions:" style="-fx-font-weight: bold; -fx-text-fill: #e74c3c;"/>
+            <HBox spacing="10">
+                <Button text="Clear All Fines" onAction="#clearAllFines" style="-fx-text-fill: #e74c3c; -fx-padding: 8;"/>
+                <Button text="Reset Overdue Status" onAction="#resetOverdueStatus" style="-fx-text-fill: #e74c3c; -fx-padding: 8;"/>
+            </HBox>
+        </VBox>
+    </VBox>
+
+    <!-- System Info -->
+    <VBox spacing="10" style="-fx-border-color: #2ecc71; -fx-border-radius: 5; -fx-padding: 15;">
+        <Label text="System Information" style="-fx-font-weight: bold; -fx-font-size: 14; -fx-text-fill: #27ae60;"/>
+        <GridPane hgap="20" vgap="10">
+            <columnConstraints>
+                <ColumnConstraints prefWidth="200"/>
+                <ColumnConstraints prefWidth="300" hgrow="ALWAYS"/>
+                <ColumnConstraints prefWidth="200"/>
+                <ColumnConstraints prefWidth="300" hgrow="ALWAYS"/>
+            </columnConstraints>
+
+            <Label text="Application Version:" GridPane.columnIndex="0" GridPane.rowIndex="0" style="-fx-font-weight: bold;"/>
+            <Label fx:id="appVersionLabel" text="1.0.0" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+            <Label text="Java Version:" GridPane.columnIndex="2" GridPane.rowIndex="0" style="-fx-font-weight: bold;"/>
+            <Label fx:id="javaVersionLabel" text="21" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+
+            <Label text="Total Users:" GridPane.columnIndex="0" GridPane.rowIndex="1" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalUsersLabel" text="0" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+            <Label text="Total Books:" GridPane.columnIndex="2" GridPane.rowIndex="1" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalBooksLabel" text="0" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+
+            <Label text="Total Members:" GridPane.columnIndex="0" GridPane.rowIndex="2" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalMembersLabel" text="0" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+            <Label text="Total Branches:" GridPane.columnIndex="2" GridPane.rowIndex="2" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalBranchesLabel" text="0" GridPane.columnIndex="3" GridPane.rowIndex="2"/>
+
+            <Label text="Last Backup:" GridPane.columnIndex="0" GridPane.rowIndex="3" style="-fx-font-weight: bold;"/>
+            <Label fx:id="lastBackupLabel" text="--" GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+            <Label text="Uptime:" GridPane.columnIndex="2" GridPane.rowIndex="3" style="-fx-font-weight: bold;"/>
+            <Label fx:id="uptimeLabel" text="--" GridPane.columnIndex="3" GridPane.rowIndex="3"/>
+        </GridPane>
+    </VBox>
+
+    <!-- Audit Logs -->
+    <Label text="System Audit Logs" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <HBox spacing="10">
+        <ComboBox fx:id="logLevelFilter" prefWidth="150" onAction="#refreshLogs">
+            <items>
+                <FXCollections fx:factory="observableArrayList">
+                    <String fx:value="All"/>
+                    <String fx:value="ERROR"/>
+                    <String fx:value="WARNING"/>
+                    <String fx:value="INFO"/>
+                </FXCollections>
+            </items>
+        </ComboBox>
+        <Button text="Clear Logs" onAction="#clearLogs"/>
+        <Button text="Export Logs" onAction="#exportLogs"/>
+    </HBox>
+
+    <TableView fx:id="auditLogsTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn text="Timestamp" prefWidth="150" fx:id="timestampColumn"/>
+            <TableColumn text="Level" prefWidth="80" fx:id="levelColumn"/>
+            <TableColumn text="User" prefWidth="100" fx:id="userColumn"/>
+            <TableColumn text="Module" prefWidth="120" fx:id="moduleColumn"/>
+            <TableColumn text="Action" prefWidth="150" fx:id="actionColumn"/>
+            <TableColumn text="Message" prefWidth="300" fx:id="messageColumn"/>
+        </columns>
+    </TableView>
+
+    <!-- System Health -->
+    <VBox spacing="10" style="-fx-border-color: #f39c12; -fx-border-radius: 5; -fx-padding: 15;">
+        <Label text="System Health" style="-fx-font-weight: bold; -fx-font-size: 14; -fx-text-fill: #d68910;"/>
+        <HBox spacing="20">
+            <VBox spacing="5">
+                <Label text="Database Status" style="-fx-font-weight: bold;"/>
+                <Label fx:id="dbStatusLabel" text="✓ Healthy" style="-fx-text-fill: #2ecc71;"/>
+            </VBox>
+            <VBox spacing="5">
+                <Label text="Disk Space" style="-fx-font-weight: bold;"/>
+                <ProgressBar fx:id="diskSpaceBar" prefWidth="250"/>
+                <Label fx:id="diskSpaceLabel" text="0 GB / 0 GB available"/>
+            </VBox>
+            <VBox spacing="5">
+                <Label text="Memory Usage" style="-fx-font-weight: bold;"/>
+                <ProgressBar fx:id="memoryBar" prefWidth="250"/>
+                <Label fx:id="memoryLabel" text="0 MB / 0 MB used"/>
+            </VBox>
+        </HBox>
+    </VBox>
+</VBox>

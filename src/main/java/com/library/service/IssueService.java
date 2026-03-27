@@ -206,6 +206,28 @@ public class IssueService {
         }
     }
 
+    // ── Renew an issued book (extend due date) ───────────────────────
+    public boolean renewIssue(int issueId, int extendDays) {
+        Connection conn = DatabaseConnection.getConnection();
+        try {
+            PreparedStatement stmt = conn.prepareStatement("""
+                UPDATE issue_records
+                SET due_date = DATE(due_date, ?),
+                    status = 'ISSUED'
+                WHERE id = ?
+                  AND status IN ('ISSUED', 'OVERDUE')
+                %s
+            """.formatted(BranchScope.isScoped() ? "AND branch_id = ?" : ""));
+            stmt.setString(1, "+" + extendDays + " day");
+            stmt.setInt(2, issueId);
+            BranchScope.bind(stmt, 3);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Renew failed: " + e.getMessage());
+            return false;
+        }
+    }
+
     // ── Get All Currently Issued Records ──────────────────────────────
     public List<IssueRecord> getIssuedBooks(String keyword) {
         return getRecords(keyword, "ISSUED");
@@ -218,6 +240,39 @@ public class IssueService {
 
     public List<IssueRecord> getIssuedBooksByMember(int memberId) {
         return getRecordsByMember(memberId, "ISSUED");
+    }
+
+    public List<IssueRecord> getIssuedBooksByAccession(String accessionNumber) {
+        List<IssueRecord> records = new ArrayList<>();
+        String sql = """
+            SELECT ir.id, ir.book_id, ir.member_id,
+                   b.title     AS book_title,
+                   m.name      AS member_name,
+                   m.member_id AS member_code,
+                   ir.accession_number,
+                   ir.issue_date, ir.due_date,
+                   ir.return_date, ir.fine_amount, ir.status
+            FROM issue_records ir
+            JOIN books   b ON ir.book_id   = b.id
+            JOIN members m ON ir.member_id = m.id
+            WHERE ir.status = 'ISSUED'
+            AND ir.accession_number LIKE ?
+            %s
+            ORDER BY ir.issue_date DESC
+        """;
+        sql = sql.formatted(BranchScope.isScoped() ? "AND ir.branch_id = ?" : "");
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(sql);
+            stmt.setString(1, "%" + accessionNumber + "%");
+            BranchScope.bind(stmt, 2);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) records.add(mapRecord(rs));
+        } catch (SQLException e) {
+            System.err.println("getIssuedBooksByAccession failed: " + e.getMessage());
+        }
+        return records;
     }
 
     public List<IssueRecord> getReturnedBooksByMember(int memberId) {

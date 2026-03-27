@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+
+<VBox spacing="15" style="-fx-padding: 15;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.library.controller.UserOversightController">
+    
+    <!-- Filter Section -->
+    <HBox spacing="15" style="-fx-border-color: #bdc3c7; -fx-border-radius: 5; -fx-padding: 10;">
+        <Label text="Filters:" style="-fx-font-weight: bold;"/>
+        
+        <VBox spacing="5">
+            <Label text="Branch"/>
+            <ComboBox fx:id="branchFilterCombo" prefWidth="150" onAction="#refreshAdminList"/>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Role"/>
+            <ComboBox fx:id="roleFilterCombo" prefWidth="150" onAction="#refreshAdminList">
+                <items>
+                    <FXCollections fx:factory="observableArrayList">
+                        <String fx:value="All"/>
+                        <String fx:value="ADMIN"/>
+                        <String fx:value="LIBRARIAN"/>
+                    </FXCollections>
+                </items>
+            </ComboBox>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text="Status"/>
+            <ComboBox fx:id="statusFilterCombo" prefWidth="150" onAction="#refreshAdminList">
+                <items>
+                    <FXCollections fx:factory="observableArrayList">
+                        <String fx:value="All"/>
+                        <String fx:value="Active"/>
+                        <String fx:value="Inactive"/>
+                    </FXCollections>
+                </items>
+            </ComboBox>
+        </VBox>
+
+        <VBox spacing="5">
+            <Label text=" "/>
+            <Button text="Add New Admin" onAction="#openAddAdminDialog"/>
+        </VBox>
+    </HBox>
+
+    <!-- Statistics -->
+    <HBox spacing="20" style="-fx-background-color: #ecf0f1; -fx-padding: 15; -fx-border-radius: 5;">
+        <VBox spacing="5">
+            <Label text="Total Admins" style="-fx-font-weight: bold;"/>
+            <Label fx:id="totalAdminsLabel" text="0" style="-fx-font-size: 16;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="Active Admins" style="-fx-font-weight: bold;"/>
+            <Label fx:id="activeAdminsLabel" text="0" style="-fx-font-size: 16; -fx-text-fill: #2ecc71;"/>
+        </VBox>
+        <VBox spacing="5">
+            <Label text="Inactive Admins" style="-fx-font-weight: bold;"/>
+            <Label fx:id="inactiveAdminsLabel" text="0" style="-fx-font-size: 16; -fx-text-fill: #e74c3c;"/>
+        </VBox>
+    </HBox>
+
+    <!-- Admin List Table -->
+    <Label text="Admin &amp; Librarian Accounts" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <TableView fx:id="adminTable" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn text="User ID" prefWidth="80" fx:id="userIdColumn"/>
+            <TableColumn text="Username" prefWidth="120" fx:id="usernameColumn"/>
+            <TableColumn text="Role" prefWidth="100" fx:id="roleColumn"/>
+            <TableColumn text="Branch" prefWidth="120" fx:id="branchColumn"/>
+            <TableColumn text="Last Login" prefWidth="150" fx:id="lastLoginColumn"/>
+            <TableColumn text="Status" prefWidth="80" fx:id="statusColumn"/>
+            <TableColumn text="Actions" prefWidth="150" fx:id="actionsColumn"/>
+        </columns>
+    </TableView>
+
+    <!-- Activity Section -->
+    <Label text="Recent Activity Logs" style="-fx-font-weight: bold; -fx-font-size: 14;"/>
+    <TableView fx:id="activityLogsTable" prefHeight="200">
+        <columns>
+            <TableColumn text="User" prefWidth="100" fx:id="activityUserColumn"/>
+            <TableColumn text="Action" prefWidth="150" fx:id="actionColumn"/>
+            <TableColumn text="Module" prefWidth="100" fx:id="moduleColumn"/>
+            <TableColumn text="Timestamp" prefWidth="150" fx:id="timestampColumn"/>
+            <TableColumn text="Details" prefWidth="200" fx:id="detailsColumn"/>
+        </columns>
+    </TableView>
+
+    <!-- Export Buttons -->
+    <HBox spacing="10">
+        <Button text="Export Admin List" onAction="#exportAdminList"/>
+        <Button text="Export Activity Logs" onAction="#exportActivityLogs"/>
+    </HBox>
+</VBox>
