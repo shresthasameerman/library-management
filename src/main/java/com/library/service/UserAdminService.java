@@ -40,6 +40,19 @@ public class UserAdminService {
     }
 
     public boolean createLibrarian(String username, String rawPassword, int branchId) {
+        return createAdminUser(username, rawPassword, "ADMIN", branchId);
+    }
+
+    public boolean createAdminUser(String username, String rawPassword, String role, Integer branchId) {
+        if (username == null || username.isBlank() || rawPassword == null || rawPassword.isBlank()) {
+            return false;
+        }
+
+        String normalizedRole = normalizeRole(role);
+        if (normalizedRole == null) {
+            return false;
+        }
+
         String hashed = org.mindrot.jbcrypt.BCrypt.hashpw(
             rawPassword,
             org.mindrot.jbcrypt.BCrypt.gensalt()
@@ -49,28 +62,66 @@ public class UserAdminService {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement("""
                     INSERT INTO users (username, password_hash, role, branch_id)
-                    VALUES (?, ?, 'ADMIN', ?)
+                    VALUES (?, ?, ?, ?)
                 """);
-            stmt.setString(1, username);
+            stmt.setString(1, username.trim());
             stmt.setString(2, hashed);
-            stmt.setInt(3, branchId);
+            stmt.setString(3, normalizedRole);
+            if (branchId == null) {
+                stmt.setNull(4, java.sql.Types.INTEGER);
+            } else {
+                stmt.setInt(4, branchId);
+            }
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Create librarian failed: " + e.getMessage());
+            System.err.println("Create admin user failed: " + e.getMessage());
             return false;
         }
     }
 
     public boolean usernameExists(String username) {
+        if (username == null || username.isBlank()) return false;
         try {
             PreparedStatement stmt = DatabaseConnection.getConnection()
-                .prepareStatement("SELECT COUNT(*) FROM users WHERE username = ?");
-            stmt.setString(1, username);
+                .prepareStatement("SELECT COUNT(*) FROM users WHERE LOWER(username) = LOWER(?)");
+            stmt.setString(1, username.trim());
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
             return false;
         }
+    }
+
+    public boolean resetAdminPassword(int userId, String rawPassword) {
+        if (rawPassword == null || rawPassword.isBlank()) {
+            return false;
+        }
+
+        String hashed = org.mindrot.jbcrypt.BCrypt.hashpw(
+            rawPassword,
+            org.mindrot.jbcrypt.BCrypt.gensalt()
+        );
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "UPDATE users SET password_hash = ? WHERE id = ? AND role IN ('ADMIN','LIBRARIAN')"
+                );
+            stmt.setString(1, hashed);
+            stmt.setInt(2, userId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Reset password failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null) return null;
+        String normalized = role.trim().toUpperCase();
+        return ("ADMIN".equals(normalized) || "LIBRARIAN".equals(normalized))
+            ? normalized
+            : null;
     }
 
     public boolean reassignLibrarian(int userId, int branchId) {

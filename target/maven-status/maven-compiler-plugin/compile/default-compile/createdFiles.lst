@@ -19,6 +19,8 @@ com/library/model/Member.class
 com/library/App.class
 com/library/controller/IssueController.class
 com/library/service/IssueService.class
+com/library/controller/UserOversightController$BranchChoice.class
+com/library/controller/BranchManagementController$BranchFormResult.class
 com/library/controller/LoginController.class
 com/library/service/ReportService.class
 com/library/service/BookCopyService.class
@@ -33,6 +35,7 @@ com/library/util/BranchScope.class
 com/library/controller/ReportsController$1.class
 com/library/controller/ReportsController.class
 com/library/controller/UserOversightController.class
+com/library/controller/UserOversightController$PasswordResetFormResult.class
 com/library/model/IssueRecord.class
 com/library/controller/IssueReturnDataController$IssueReturnRecord.class
 com/library/controller/BranchManagementController$BranchRecord.class
@@ -58,6 +61,7 @@ com/library/controller/SuperAdminDashboardController$2.class
 com/library/controller/BranchManagementController.class
 com/library/controller/NotificationsController$Notification.class
 com/library/service/UserAdminService.class
+com/library/controller/UserOversightController$AdminFormResult.class
 com/library/controller/UserOversightController$AdminRecord.class
 com/library/controller/SystemManagementController.class
 com/library/controller/BookController$1.class

@@ -1,6 +1,7 @@
 package com.library.controller;
 
 import com.library.database.DatabaseConnection;
+import com.library.service.BranchService;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -8,17 +9,27 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Dialog;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.GridPane;
+import javafx.stage.Window;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 public class BranchManagementController {
 
@@ -43,6 +54,8 @@ public class BranchManagementController {
     @FXML private Label metricFines;
 
     private final ObservableList<BranchRecord> allBranches = FXCollections.observableArrayList();
+    private final BranchService branchService = new BranchService();
+    private static final Pattern BRANCH_CODE_PATTERN = Pattern.compile("^[A-Z0-9_-]{2,12}$");
 
     @FXML
     public void initialize() {
@@ -226,7 +239,166 @@ public class BranchManagementController {
 
     @FXML
     private void openAddBranchDialog() {
-        showAlert("Info", "Add new branch dialog will open here");
+        Dialog<BranchFormResult> dialog = new Dialog<>();
+        dialog.setTitle("Create Branch");
+        dialog.setHeaderText("Add a new library branch");
+
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+
+        ButtonType createButtonType = new ButtonType("Create Branch", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(createButtonType, ButtonType.CANCEL);
+
+        TextField nameField = new TextField();
+        nameField.setPromptText("e.g. BMC Pokhara");
+
+        TextField locationField = new TextField();
+        locationField.setPromptText("e.g. A Levels");
+
+        TextField codeField = new TextField();
+        codeField.setPromptText("e.g. BMPKR (2-12 chars)");
+
+        Label hintLabel = new Label("Code: uppercase letters/numbers, underscore or hyphen.");
+        hintLabel.setStyle("-fx-text-fill: #576574; -fx-font-size: 11;");
+
+        Label validationLabel = new Label();
+        validationLabel.setStyle("-fx-text-fill: #c0392b; -fx-font-size: 11;");
+        validationLabel.setWrapText(true);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(12, 16, 8, 16));
+
+        grid.add(new Label("Branch Name"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Location"), 0, 1);
+        grid.add(locationField, 1, 1);
+        grid.add(new Label("Branch Code"), 0, 2);
+        grid.add(codeField, 1, 2);
+        grid.add(hintLabel, 1, 3);
+        grid.add(validationLabel, 1, 4);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Button createButton = (Button) dialog.getDialogPane().lookupButton(createButtonType);
+        createButton.setDisable(true);
+
+        Runnable validateLive = () -> {
+            String name = nameField.getText() == null ? "" : nameField.getText().trim();
+            String location = locationField.getText() == null ? "" : locationField.getText().trim();
+            String code = normalizeCode(codeField.getText());
+
+            if (name.isBlank() || location.isBlank() || code.isBlank()) {
+                validationLabel.setText("Fill all fields to continue.");
+                createButton.setDisable(true);
+                return;
+            }
+
+            if (name.length() < 3) {
+                validationLabel.setText("Branch name should be at least 3 characters.");
+                createButton.setDisable(true);
+                return;
+            }
+
+            if (!BRANCH_CODE_PATTERN.matcher(code).matches()) {
+                validationLabel.setText("Branch code format is invalid.");
+                createButton.setDisable(true);
+                return;
+            }
+
+            validationLabel.setText("");
+            createButton.setDisable(false);
+        };
+
+        nameField.textProperty().addListener((obs, oldV, newV) -> {
+            String currentCode = codeField.getText() == null ? "" : codeField.getText().trim();
+            if (currentCode.isBlank()) {
+                codeField.setText(suggestBranchCode(newV));
+            }
+            validateLive.run();
+        });
+        locationField.textProperty().addListener((obs, oldV, newV) -> validateLive.run());
+        codeField.textProperty().addListener((obs, oldV, newV) -> {
+            String normalized = normalizeCode(newV);
+            if (!normalized.equals(newV == null ? "" : newV)) {
+                codeField.setText(normalized);
+            }
+            validateLive.run();
+        });
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType != createButtonType) return null;
+            return new BranchFormResult(
+                nameField.getText().trim(),
+                locationField.getText().trim(),
+                normalizeCode(codeField.getText())
+            );
+        });
+
+        Optional<BranchFormResult> result = dialog.showAndWait();
+        if (result.isEmpty()) return;
+
+        BranchFormResult form = result.get();
+
+        if (branchService.branchNameExists(form.name)) {
+            showAlert(Alert.AlertType.WARNING, "Duplicate Branch", "An active branch with this name already exists.");
+            return;
+        }
+
+        if (branchService.branchCodeExists(form.code)) {
+            showAlert(Alert.AlertType.WARNING, "Duplicate Code", "This branch code is already in use.");
+            return;
+        }
+
+        boolean created = branchService.addBranch(form.name, form.location, form.code);
+        if (!created) {
+            showAlert(Alert.AlertType.ERROR, "Could Not Create Branch", "Please verify details and try again.");
+            return;
+        }
+
+        loadBranches();
+        selectBranchByName(form.name);
+        showAlert(Alert.AlertType.INFORMATION, "Branch Created", "Branch '" + form.name + "' was created successfully.");
+    }
+
+    private void selectBranchByName(String branchName) {
+        if (branchName == null || branchName.isBlank()) return;
+        for (BranchRecord row : allBranches) {
+            if (row.branchName != null && row.branchName.equalsIgnoreCase(branchName)) {
+                branchesTable.getSelectionModel().select(row);
+                branchesTable.scrollTo(row);
+                break;
+            }
+        }
+    }
+
+    private String normalizeCode(String code) {
+        if (code == null) return "";
+        return code.trim().toUpperCase();
+    }
+
+    private String suggestBranchCode(String branchName) {
+        if (branchName == null) return "";
+        String[] parts = branchName.trim().split("\\s+");
+        StringBuilder builder = new StringBuilder();
+        for (String part : parts) {
+            if (!part.isBlank() && Character.isLetterOrDigit(part.charAt(0))) {
+                builder.append(Character.toUpperCase(part.charAt(0)));
+            }
+            if (builder.length() >= 6) {
+                break;
+            }
+        }
+        String candidate = builder.length() < 2
+            ? branchName.replaceAll("[^A-Za-z0-9]", "").toUpperCase()
+            : builder.toString();
+        if (candidate.length() > 12) {
+            candidate = candidate.substring(0, 12);
+        }
+        return candidate;
     }
 
     @FXML
@@ -320,11 +492,40 @@ public class BranchManagementController {
         return (value == null || value.isBlank()) ? "—" : value;
     }
 
+    private Window getOwnerWindow() {
+        return branchesTable != null && branchesTable.getScene() != null
+            ? branchesTable.getScene().getWindow()
+            : null;
+    }
+
     private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        showAlert(Alert.AlertType.INFORMATION, title, message);
+    }
+
+    private void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
+        alert.setHeaderText(null);
         alert.setContentText(message);
+
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            alert.initOwner(owner);
+        }
+
         alert.showAndWait();
+    }
+
+    private static class BranchFormResult {
+        final String name;
+        final String location;
+        final String code;
+
+        BranchFormResult(String name, String location, String code) {
+            this.name = name;
+            this.location = location;
+            this.code = code;
+        }
     }
 
     public static class BranchRecord {

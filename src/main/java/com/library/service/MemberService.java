@@ -8,8 +8,14 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MemberService {
+
+    private static final Pattern MEMBER_ID_PATTERN = Pattern.compile("^(.*?)(\\d+)$");
+    private String lastErrorMessage = "";
 
     // ── TBC Courses ───────────────────────────────────────────────────
     public static final String[] COURSES = {
@@ -56,6 +62,7 @@ public class MemberService {
 
     // ── Add New Member ────────────────────────────────────────────────
     public boolean addMember(Member member) {
+        clearLastError();
         String sql = """
             INSERT INTO members
                 (name, email, phone, member_id,
@@ -78,12 +85,14 @@ public class MemberService {
             return true;
         } catch (SQLException e) {
             System.err.println("Add member failed: " + e.getMessage());
+            setLastError(mapSqlError(e, "Failed to save member."));
             return false;
         }
     }
 
     // ── Update Member ─────────────────────────────────────────────────
     public boolean updateMember(Member member) {
+        clearLastError();
         String sql = """
             UPDATE members
             SET name = ?, email = ?, phone = ?,
@@ -109,6 +118,7 @@ public class MemberService {
             return true;
         } catch (SQLException e) {
             System.err.println("Update failed: " + e.getMessage());
+            setLastError(mapSqlError(e, "Failed to update member."));
             return false;
         }
     }
@@ -276,12 +286,10 @@ public class MemberService {
             PreparedStatement stmt = DatabaseConnection.getConnection()
                 .prepareStatement(
                     "SELECT COUNT(*) FROM members " +
-                    "WHERE member_id = ? AND id != ?" +
-                    BranchScope.andClause("branch_id")
+                    "WHERE member_id = ? AND id != ?"
                 );
             stmt.setString(1, memberId);
             stmt.setInt(2, excludeId);
-            BranchScope.bind(stmt, 3);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
@@ -307,18 +315,97 @@ public class MemberService {
 
     // ── Auto-generate Member ID ───────────────────────────────────────
     public String generateMemberId() {
+        String prefix = getCurrentBranchMemberPrefix();
+        int next = 1;
         try {
-            ResultSet rs = DatabaseConnection.getConnection()
-                .createStatement()
-                .executeQuery("SELECT COUNT(*) FROM members" +
-                    (BranchScope.isScoped()
-                        ? " WHERE branch_id = " + BranchScope.branchId()
-                        : ""));
-            if (rs.next())
-                return String.format("TBC%04d", rs.getInt(1) + 1);
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT member_id FROM members WHERE member_id LIKE ?"
+            )) {
+                stmt.setString(1, prefix + "%");
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String memberId = rs.getString("member_id");
+                        Matcher matcher = MEMBER_ID_PATTERN.matcher(memberId == null ? "" : memberId);
+                        if (matcher.matches() && prefix.equalsIgnoreCase(matcher.group(1))) {
+                            int seq = Integer.parseInt(matcher.group(2));
+                            if (seq >= next) {
+                                next = seq + 1;
+                            }
+                        }
+                    }
+                }
+            }
         } catch (SQLException e) {
             System.err.println("ID gen failed: " + e.getMessage());
         }
-        return "TBC0001";
+        return String.format("%s%04d", prefix, next);
+    }
+
+    public String getCurrentBranchMemberPrefix() {
+        if (!BranchScope.isScoped() || BranchScope.branchId() == null) {
+            return "TBC";
+        }
+
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT code FROM branches WHERE id = ?"
+            )) {
+                stmt.setInt(1, BranchScope.branchId());
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        String code = rs.getString("code");
+                        return prefixFromBranchCode(code);
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Branch prefix lookup failed: " + e.getMessage());
+        }
+
+        return "TBC";
+    }
+
+    public String getLastErrorMessage() {
+        return (lastErrorMessage == null || lastErrorMessage.isBlank())
+            ? "Failed to save. Try again."
+            : lastErrorMessage;
+    }
+
+    private void clearLastError() {
+        lastErrorMessage = "";
+    }
+
+    private void setLastError(String message) {
+        lastErrorMessage = message;
+    }
+
+    private String mapSqlError(SQLException e, String fallback) {
+        String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+        if (msg.contains("unique") && msg.contains("members.member_id")) {
+            return "Member ID already exists. Use a different ID.";
+        }
+        if (msg.contains("not null") && msg.contains("member_id")) {
+            return "Member ID is required.";
+        }
+        return fallback;
+    }
+
+    private String prefixFromBranchCode(String branchCode) {
+        if (branchCode == null || branchCode.isBlank()) {
+            return "TBC";
+        }
+
+        String normalized = branchCode.replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
+        if (normalized.isBlank() || "MAIN".equals(normalized)) {
+            return "TBC";
+        }
+
+        if (normalized.length() >= 4) {
+            return normalized.substring(0, 4);
+        }
+
+        return normalized;
     }
 }

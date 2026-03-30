@@ -8,11 +8,15 @@ import com.library.util.BranchScope;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class BookCopyService {
 
+    private String lastErrorMessage = "";
+
     // ── Add a single copy ─────────────────────────────────────────────
     public boolean addCopy(int bookId, String accessionNumber) {
+        clearLastError();
         try {
             Connection conn = DatabaseConnection.getConnection();
             Integer branchId = resolveBookBranchId(conn, bookId);
@@ -27,12 +31,14 @@ public class BookCopyService {
             return true;
         } catch (SQLException e) {
             System.err.println("Add copy failed: " + e.getMessage());
+            setLastError(mapSqlError(e, "Could not add copy."));
             return false;
         }
     }
 
     // ── Add multiple copies at once ───────────────────────────────────
     public boolean addCopies(int bookId, List<String> accessionNumbers) {
+        clearLastError();
         Connection conn = DatabaseConnection.getConnection();
         try {
             conn.setAutoCommit(false);
@@ -58,6 +64,7 @@ public class BookCopyService {
             try { conn.rollback(); conn.setAutoCommit(true); }
             catch (SQLException ignored) {}
             System.err.println("Add copies failed: " + e.getMessage());
+            setLastError(mapSqlError(e, "Could not save copy records."));
             return false;
         }
     }
@@ -139,6 +146,7 @@ public class BookCopyService {
         List<BookCopyDetail> rows = new ArrayList<>();
         try {
             Connection conn = DatabaseConnection.getConnection();
+            ensureCopyRowsForBook(bookId, conn);
             PreparedStatement stmt = conn.prepareStatement("""
                 SELECT bc.accession_number,
                        bc.status,
@@ -209,17 +217,21 @@ public class BookCopyService {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
                 "SELECT COUNT(*) FROM book_copies " +
-                "WHERE accession_number = ? AND id != ?" +
-                BranchScope.andClause("branch_id")
+                "WHERE accession_number = ? AND id != ?"
             );
             stmt.setString(1, accessionNumber);
             stmt.setInt(2, excludeCopyId);
-            BranchScope.bind(stmt, 3);
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
             return false;
         }
+    }
+
+    public String getLastErrorMessage() {
+        return (lastErrorMessage == null || lastErrorMessage.isBlank())
+            ? "Could not save copy records."
+            : lastErrorMessage;
     }
 
     // ── Mark copy as issued ───────────────────────────────────────────
@@ -317,5 +329,109 @@ public class BookCopyService {
         ResultSet rs = stmt.executeQuery();
         if (rs.next()) return (Integer) rs.getObject("branch_id");
         return BranchScope.branchId();
+    }
+
+    private void ensureCopyRowsForBook(int bookId, Connection conn)
+            throws SQLException {
+        int existingCopies = 0;
+        try (PreparedStatement countStmt = conn.prepareStatement(
+            "SELECT COUNT(*) AS cnt FROM book_copies WHERE book_id = ?"
+        )) {
+            countStmt.setInt(1, bookId);
+            try (ResultSet rs = countStmt.executeQuery()) {
+                if (rs.next()) existingCopies = rs.getInt("cnt");
+            }
+        }
+        if (existingCopies > 0) return;
+
+        String baseAccession = "";
+        int totalCopies = 0;
+        Integer branchId = null;
+        try (PreparedStatement bookStmt = conn.prepareStatement(
+            "SELECT accession_number, total_copies, branch_id FROM books WHERE id = ?"
+        )) {
+            bookStmt.setInt(1, bookId);
+            try (ResultSet rs = bookStmt.executeQuery()) {
+                if (!rs.next()) return;
+                baseAccession = rs.getString("accession_number");
+                totalCopies = Math.max(1, rs.getInt("total_copies"));
+                branchId = (Integer) rs.getObject("branch_id");
+            }
+        }
+
+        List<String> accessions = buildLegacyAccessions(baseAccession, totalCopies);
+
+        boolean previousAutoCommit = conn.getAutoCommit();
+        conn.setAutoCommit(false);
+        try (PreparedStatement insertStmt = conn.prepareStatement(
+            "INSERT INTO book_copies (book_id, accession_number, branch_id, status) VALUES (?, ?, ?, 'AVAILABLE')"
+        )) {
+            for (String accession : accessions) {
+                String candidate = accession;
+                int suffix = 1;
+                while (accessionExists(candidate, 0)) {
+                    candidate = accession + "-" + suffix++;
+                }
+                insertStmt.setInt(1, bookId);
+                insertStmt.setString(2, candidate);
+                insertStmt.setObject(3, branchId);
+                insertStmt.addBatch();
+            }
+            insertStmt.executeBatch();
+            updateBookCopyCount(bookId, conn);
+            conn.commit();
+        } catch (SQLException e) {
+            conn.rollback();
+            throw e;
+        } finally {
+            conn.setAutoCommit(previousAutoCommit);
+        }
+    }
+
+    private List<String> buildLegacyAccessions(String baseAccession, int totalCopies) {
+        List<String> rows = new ArrayList<>();
+        String base = (baseAccession == null || baseAccession.isBlank()) ? "ACC" : baseAccession.trim();
+        String digits = base.replaceAll("[^0-9]", "");
+        String prefix = base.replaceAll("[0-9]", "");
+
+        if (!digits.isBlank()) {
+            int width = digits.length();
+            int start;
+            try {
+                start = Integer.parseInt(digits);
+            } catch (NumberFormatException ex) {
+                start = 1;
+            }
+            for (int i = 0; i < totalCopies; i++) {
+                rows.add(prefix + String.format(Locale.ROOT, "%0" + width + "d", start + i));
+            }
+            return rows;
+        }
+
+        if (totalCopies == 1) {
+            rows.add(base);
+            return rows;
+        }
+
+        for (int i = 1; i <= totalCopies; i++) {
+            rows.add(base + "-" + i);
+        }
+        return rows;
+    }
+
+    private void clearLastError() {
+        lastErrorMessage = "";
+    }
+
+    private void setLastError(String message) {
+        lastErrorMessage = message;
+    }
+
+    private String mapSqlError(SQLException e, String fallback) {
+        String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase(Locale.ROOT);
+        if (msg.contains("unique") && msg.contains("book_copies.accession_number")) {
+            return "Accession number already exists. Use a unique accession sequence for this branch.";
+        }
+        return fallback;
     }
 }

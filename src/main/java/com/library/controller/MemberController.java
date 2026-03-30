@@ -22,6 +22,7 @@ import javafx.stage.Window;
 
 import java.net.URL;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.ResourceBundle;
 
@@ -359,6 +360,7 @@ public class MemberController implements Initializable {
     // ── Member Form ───────────────────────────────────────────────────
     private void openMemberForm(Member existing) {
         boolean isEdit = existing != null;
+        String expectedPrefix = memberService.getCurrentBranchMemberPrefix();
 
         TextField        nameField  = new TextField();
         TextField        idField    = new TextField();
@@ -420,7 +422,10 @@ public class MemberController implements Initializable {
             tf.setPrefHeight(38);
         }
 
-        if (!isEdit) idField.setText(memberService.generateMemberId());
+        if (!isEdit) {
+            idField.setText(memberService.generateMemberId());
+            idField.setPromptText("Starts with " + expectedPrefix);
+        }
 
         if (isEdit) {
             nameField.setText(existing.getName());
@@ -496,6 +501,10 @@ public class MemberController implements Initializable {
             if (mId.isEmpty()) {
                 errorLabel.setText("⚠ Member ID is required."); return;
             }
+            if (!mId.toUpperCase(Locale.ROOT).startsWith(expectedPrefix)) {
+                errorLabel.setText("⚠ Member ID must start with " + expectedPrefix + " for this branch.");
+                return;
+            }
             if (course == null) {
                 errorLabel.setText("⚠ Please select a course."); return;
             }
@@ -525,7 +534,7 @@ public class MemberController implements Initializable {
                     isEdit ? "Member updated!"
                            : member.getName() + " registered!");
             } else {
-                errorLabel.setText("⚠ Failed to save. Try again.");
+                errorLabel.setText("⚠ " + memberService.getLastErrorMessage());
             }
         });
 

@@ -47,6 +47,11 @@
             <Label text=" "/>
             <Button text="Add New Admin" onAction="#openAddAdminDialog"/>
         </VBox>
+
+        <VBox spacing="5">
+            <Label text=" "/>
+            <Button text="Reset Password" onAction="#openResetPasswordDialog"/>
+        </VBox>
     </HBox>
 
     <!-- Statistics -->

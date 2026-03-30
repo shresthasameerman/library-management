@@ -323,32 +323,53 @@ public class BookController implements Initializable {
 
     // ── QR Code Viewer ────────────────────────────────────────────────
     private void showQRCode(Book book) {
-        String rangeStr;
-        int copies = book.getTotalCopies();
-        String acc = book.getAccessionNumber();
-        if (copies > 1 && acc != null && !acc.isBlank()) {
-            try {
-                String numericPart = acc.replaceAll("[^0-9]", "");
-                String prefix      = acc.replaceAll("[0-9]", "");
-                int    start       = Integer.parseInt(numericPart);
-                int    end         = start + copies - 1;
-                rangeStr = prefix + start + " → " + prefix + end +
-                           " (" + copies + " copies)";
-            } catch (NumberFormatException e) {
-                rangeStr = acc;
+        List<com.library.model.BookCopy> copies = copyService.getCopiesForBook(book.getId());
+        String selectedAccession;
+        String selectedStatus;
+
+        if (!copies.isEmpty()) {
+            ChoiceDialog<com.library.model.BookCopy> chooseCopy =
+                new ChoiceDialog<>(copies.get(0), copies);
+            chooseCopy.setTitle("Select Accession QR");
+            chooseCopy.setHeaderText("Generate QR for a specific accession copy");
+            chooseCopy.setContentText("Accession:");
+            chooseCopy.initOwner(Window.getWindows().stream()
+                .filter(Window::isShowing).findFirst().orElse(null));
+
+            Optional<com.library.model.BookCopy> chosen = chooseCopy.showAndWait();
+            if (chosen.isEmpty()) {
+                return;
             }
+
+            selectedAccession = safe(chosen.get().getAccessionNumber());
+            selectedStatus = safe(chosen.get().getStatus());
         } else {
-            rangeStr = acc != null ? acc : "—";
+            // Backward-compatible fallback for older rows with no copy records.
+            selectedAccession = safe(book.getAccessionNumber());
+            selectedStatus = book.getAvailableCopies() > 0 ? "AVAILABLE" : "ISSUED";
         }
 
-        String content = QRCodeUtil.buildQRContent(
-            book.getAccessionNumber(),
-            book.getTitle(),
-            book.getAuthor(),
-            book.getClassificationNumber(),
-            book.getId()
-        ) + "\nRange: " + rangeStr
-          + "\nCopies: " + copies;
+        String content = String.format(
+            "THE BRITISH COLLEGE LIBRARY\n" +
+            "Title: %s\n" +
+            "Author: %s\n" +
+            "Accession: %s\n" +
+            "Copy Status: %s\n" +
+            "Class No: %s\n" +
+            "Cutter No: %s\n" +
+            "Edition: %s\n" +
+            "Publisher: %s\n" +
+            "Category: %s",
+            safe(book.getTitle()),
+            safe(book.getAuthor()),
+            selectedAccession,
+            selectedStatus,
+            safe(book.getClassificationNumber()),
+            safe(book.getCutterNumber()),
+            safe(book.getEdition()),
+            safe(book.getPublisher()),
+            safe(book.getCategory())
+        );
 
         Image qrImage = QRCodeUtil.generateQRImage(content);
         if (qrImage == null) {
@@ -368,12 +389,12 @@ public class BookController implements Initializable {
         titleLbl.setMaxWidth(280);
 
         Label infoLbl = new Label(
-            "Accession : " + acc + "\n" +
-            "Range     : " + rangeStr + "\n" +
+            "Accession : " + selectedAccession + "\n" +
+            "Status    : " + selectedStatus + "\n" +
             "Class No  : " + book.getClassificationNumber() + "\n" +
             "Cutter    : " + book.getCutterNumber() + "\n" +
             "Edition   : " + book.getEdition() + "\n" +
-            "Copies    : " + copies
+            "Publisher : " + book.getPublisher()
         );
         infoLbl.setStyle(
             "-fx-font-size: 12px; -fx-text-fill: #333333;" +
@@ -409,7 +430,7 @@ public class BookController implements Initializable {
 
         saveBtn.setOnAction(e -> {
             String path = QRCodeUtil.saveQRCode(
-                content, book.getAccessionNumber());
+                content, selectedAccession);
             if (path != null) {
                 AlertHelper.showSuccess("QR Saved!", "Saved to:\n" + path);
             } else {
@@ -808,7 +829,15 @@ public class BookController implements Initializable {
 
                 // Save new copies to book_copies table
                 if (!newAccessions.isEmpty()) {
-                    copyService.addCopies(bookId, newAccessions);
+                    boolean copiesSaved = copyService.addCopies(bookId, newAccessions);
+                    if (!copiesSaved) {
+                        if (!isEdit) {
+                            // Avoid leaving a branch book row without its copy-sheet data.
+                            bookService.deleteBook(bookId);
+                        }
+                        errorLabel.setText("⚠ " + copyService.getLastErrorMessage());
+                        return;
+                    }
                 }
 
                 dialog.close();

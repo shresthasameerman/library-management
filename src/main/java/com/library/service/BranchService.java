@@ -58,8 +58,21 @@ public class BranchService {
         if (code == null || code.isBlank()) return false;
         try {
             PreparedStatement stmt = DatabaseConnection.getConnection()
-                .prepareStatement("SELECT COUNT(*) FROM branches WHERE code = ?");
-            stmt.setString(1, code);
+                .prepareStatement("SELECT COUNT(*) FROM branches WHERE UPPER(code) = UPPER(?)");
+            stmt.setString(1, code.trim());
+            ResultSet rs = stmt.executeQuery();
+            return rs.next() && rs.getInt(1) > 0;
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    public boolean branchNameExists(String name) {
+        if (name == null || name.isBlank()) return false;
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement("SELECT COUNT(*) FROM branches WHERE LOWER(name) = LOWER(?) AND active = 1");
+            stmt.setString(1, name.trim());
             ResultSet rs = stmt.executeQuery();
             return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
