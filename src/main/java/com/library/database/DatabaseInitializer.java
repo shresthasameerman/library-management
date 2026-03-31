@@ -44,7 +44,7 @@ public class DatabaseInitializer {
                     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
                     title                 TEXT NOT NULL,
                     author                TEXT NOT NULL,
-                    isbn                  TEXT UNIQUE,
+                    isbn                  TEXT UNIQUE NOT NULL,
                     branch_id             INTEGER,
                     category              TEXT,
                     total_copies          INTEGER DEFAULT 1,
@@ -67,13 +67,13 @@ public class DatabaseInitializer {
                 CREATE TABLE IF NOT EXISTS members (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
                     name        TEXT NOT NULL,
-                    email       TEXT,
-                    phone       TEXT,
+                    email       TEXT UNIQUE,
+                    phone       TEXT UNIQUE,
                     member_id   TEXT UNIQUE NOT NULL,
                     branch_id   INTEGER,
                     department  TEXT,
                     member_type TEXT DEFAULT 'Student',
-                    intake      TEXT DEFAULT '',
+                    intake_date DATE,
                     active      INTEGER DEFAULT 1,
                     joined_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(branch_id) REFERENCES branches(id)
@@ -147,7 +147,7 @@ public class DatabaseInitializer {
             // Members — intake
             try {
                 stmt.execute(
-                    "ALTER TABLE members ADD COLUMN intake TEXT DEFAULT ''"
+                    "ALTER TABLE members ADD COLUMN intake_date DATE"
                 );
                 System.out.println("✓ intake column added.");
             } catch (SQLException ignored) {}
