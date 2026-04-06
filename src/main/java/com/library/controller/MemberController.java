@@ -4,7 +4,10 @@ import com.library.model.Member;
 import com.library.model.IssueRecord;
 import com.library.service.IssueService;
 import com.library.service.MemberService;
+import com.library.service.UserAdminService;
 import com.library.util.AlertHelper;
+import com.library.util.BranchScope;
+import com.library.util.SessionManager;
 
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -49,6 +52,7 @@ public class MemberController implements Initializable {
 
     private final MemberService          memberService = new MemberService();
     private final IssueService           issueService  = new IssueService();
+    private final UserAdminService       userAdminService = new UserAdminService();
     private final ObservableList<Member> memberList    =
                                          FXCollections.observableArrayList();
 
@@ -369,6 +373,9 @@ public class MemberController implements Initializable {
         ComboBox<String> typeBox    = new ComboBox<>();
         ComboBox<String> courseBox  = new ComboBox<>();
         ComboBox<String> intakeBox  = new ComboBox<>();
+        PasswordField    passwordField = new PasswordField();
+        PasswordField    confirmPasswordField = new PasswordField();
+        VBox             studentLoginBox = new VBox(6);
         Label            errorLabel = new Label();
 
         nameField.setPromptText("e.g. Sameer Thapa");
@@ -397,6 +404,13 @@ public class MemberController implements Initializable {
         intakeBox.setPrefWidth(Double.MAX_VALUE);
         intakeBox.setPrefHeight(38);
 
+        passwordField.setPromptText("Set student login password");
+        confirmPasswordField.setPromptText("Confirm password");
+        passwordField.setPrefWidth(300);
+        confirmPasswordField.setPrefWidth(300);
+        passwordField.setPrefHeight(38);
+        confirmPasswordField.setPrefHeight(38);
+
         // When type = Staff, set intake to N/A and disable
         typeBox.valueProperty().addListener((obs, old, newVal) -> {
             if ("Staff".equals(newVal)) {
@@ -404,6 +418,8 @@ public class MemberController implements Initializable {
                 intakeBox.setValue("N/A (Staff)");
                 intakeBox.setDisable(true);
                 courseBox.setDisable(true);
+                studentLoginBox.setVisible(false);
+                studentLoginBox.setManaged(false);
             } else {
                 intakeBox.setDisable(false);
                 courseBox.setDisable(false);
@@ -411,6 +427,8 @@ public class MemberController implements Initializable {
                     courseBox.setValue(null);
                 if ("N/A (Staff)".equals(intakeBox.getValue()))
                     intakeBox.setValue(null);
+                studentLoginBox.setVisible(!isEdit);
+                studentLoginBox.setManaged(!isEdit);
             }
         });
 
@@ -440,6 +458,18 @@ public class MemberController implements Initializable {
         String labelStyle =
             "-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #333;";
 
+        Label loginHint = new Label(
+            "Students log in with their Member ID as the username."
+        );
+        loginHint.setStyle("-fx-text-fill: #4361ee; -fx-font-size: 11px;");
+        studentLoginBox.getChildren().addAll(
+            fieldBox("Student Login Password *", labelStyle, passwordField),
+            fieldBox("Confirm Password *", labelStyle, confirmPasswordField),
+            loginHint
+        );
+        studentLoginBox.setVisible(!isEdit);
+        studentLoginBox.setManaged(!isEdit);
+
         VBox form = new VBox(12);
         form.setPadding(new Insets(24, 28, 10, 28));
         form.setPrefWidth(480);
@@ -449,6 +479,7 @@ public class MemberController implements Initializable {
             fieldBox("Member ID *",   labelStyle, idField),
             fieldBox("Course *",      labelStyle, courseBox),
             fieldBox("Intake Session *", labelStyle, intakeBox),
+            studentLoginBox,
             fieldBox("Phone",         labelStyle, phoneField),
             fieldBox("Email",         labelStyle, emailField),
             errorLabel
@@ -494,6 +525,7 @@ public class MemberController implements Initializable {
             String type   = typeBox.getValue();
             String course = courseBox.getValue();
             String intake = intakeBox.getValue();
+            boolean studentType = "Student".equals(type);
 
             if (name.isEmpty()) {
                 errorLabel.setText("⚠ Full name is required."); return;
@@ -516,6 +548,35 @@ public class MemberController implements Initializable {
                 errorLabel.setText("⚠ This Member ID already exists."); return;
             }
 
+            if (studentType) {
+                if (!isEdit) {
+                    String password = passwordField.getText() == null ? "" : passwordField.getText().trim();
+                    String confirm = confirmPasswordField.getText() == null ? "" : confirmPasswordField.getText().trim();
+                    if (password.length() < 6) {
+                        errorLabel.setText("⚠ Student password must be at least 6 characters.");
+                        return;
+                    }
+                    if (!password.equals(confirm)) {
+                        errorLabel.setText("⚠ Passwords do not match.");
+                        return;
+                    }
+                }
+
+                if (isEdit && existing != null && !mId.equalsIgnoreCase(existing.getMemberId())
+                        && userAdminService.studentAccountExists(mId)) {
+                    errorLabel.setText("⚠ A student login already exists for this Member ID.");
+                    return;
+                }
+
+                if (!isEdit && userAdminService.studentAccountExists(mId)) {
+                    errorLabel.setText("⚠ A login already exists for this Member ID.");
+                    return;
+                }
+            }
+
+            String oldMemberId = isEdit ? existing.getMemberId() : null;
+            String oldMemberType = isEdit ? existing.getMemberType() : null;
+
             Member member = new Member(
                 isEdit ? existing.getId() : 0,
                 name, email, phone, mId,
@@ -528,6 +589,26 @@ public class MemberController implements Initializable {
                 : memberService.addMember(member);
 
             if (success) {
+                Integer branchId = SessionManager.getCurrentBranchId();
+                if (!isEdit && studentType) {
+                    boolean createdStudent = userAdminService.createStudentUser(
+                        mId,
+                        passwordField.getText().trim(),
+                        branchId != null ? branchId : BranchScope.branchId()
+                    );
+                    if (!createdStudent) {
+                        errorLabel.setText("⚠ Member saved, but student login could not be created.");
+                    }
+                } else if (isEdit && "Student".equalsIgnoreCase(oldMemberType)) {
+                    if (studentType) {
+                        if (oldMemberId != null && !oldMemberId.equalsIgnoreCase(mId)) {
+                            userAdminService.updateStudentUsername(oldMemberId, mId);
+                        }
+                    } else if (oldMemberId != null) {
+                        userAdminService.deleteStudentUser(oldMemberId);
+                    }
+                }
+
                 dialog.close();
                 applyFilters();
                 AlertHelper.showSuccess("Success",

@@ -27,8 +27,16 @@ public class SessionManager {
         return currentUser != null && currentUser.isSuperAdmin();
     }
 
+    public static boolean isStudent() {
+        return currentUser != null && currentUser.isStudent();
+    }
+
     public static Integer getCurrentBranchId() {
         return currentUser != null ? currentUser.getBranchId() : null;
+    }
+
+    public static Integer getCurrentMemberRecordId() {
+        return currentUser != null ? currentUser.getMemberRecordId() : null;
     }
 
     public static boolean isBranchScopedUser() {

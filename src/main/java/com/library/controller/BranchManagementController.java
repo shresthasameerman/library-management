@@ -2,6 +2,7 @@ package com.library.controller;
 
 import com.library.database.DatabaseConnection;
 import com.library.service.BranchService;
+import com.library.util.ExportService;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -403,16 +404,230 @@ public class BranchManagementController {
 
     @FXML
     private void editSelectedBranch() {
-        if (branchesTable.getSelectionModel().getSelectedItem() != null) {
-            showAlert("Info", "Edit dialog will open for selected branch");
+        BranchRecord selected = branchesTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "No Branch Selected", "Select a branch first, then click Edit Selected.");
+            return;
+        }
+
+        Dialog<BranchFormResult> dialog = new Dialog<>();
+        dialog.setTitle("Edit Branch");
+        dialog.setHeaderText("Update details for " + selected.branchName);
+
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+
+        ButtonType saveButtonType = new ButtonType("Save Changes", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+
+        TextField nameField = new TextField(selected.branchName);
+        TextField locationField = new TextField(selected.location);
+        TextField codeField = new TextField(selected.code);
+
+        nameField.setPromptText("e.g. BMC Pokhara");
+        locationField.setPromptText("e.g. A Levels");
+        codeField.setPromptText("e.g. BMPKR (2-12 chars)");
+
+        Label hintLabel = new Label("Code: uppercase letters/numbers, underscore or hyphen.");
+        hintLabel.setStyle("-fx-text-fill: #576574; -fx-font-size: 11;");
+
+        Label validationLabel = new Label();
+        validationLabel.setStyle("-fx-text-fill: #c0392b; -fx-font-size: 11;");
+        validationLabel.setWrapText(true);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(12, 16, 8, 16));
+
+        grid.add(new Label("Branch Name"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Location"), 0, 1);
+        grid.add(locationField, 1, 1);
+        grid.add(new Label("Branch Code"), 0, 2);
+        grid.add(codeField, 1, 2);
+        grid.add(hintLabel, 1, 3);
+        grid.add(validationLabel, 1, 4);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Button saveButton = (Button) dialog.getDialogPane().lookupButton(saveButtonType);
+        saveButton.setDisable(false);
+
+        Runnable validateLive = () -> {
+            String name = nameField.getText() == null ? "" : nameField.getText().trim();
+            String location = locationField.getText() == null ? "" : locationField.getText().trim();
+            String code = normalizeCode(codeField.getText());
+
+            if (name.isBlank() || location.isBlank() || code.isBlank()) {
+                validationLabel.setText("Fill all fields to continue.");
+                saveButton.setDisable(true);
+                return;
+            }
+
+            if (name.length() < 3) {
+                validationLabel.setText("Branch name should be at least 3 characters.");
+                saveButton.setDisable(true);
+                return;
+            }
+
+            if (!BRANCH_CODE_PATTERN.matcher(code).matches()) {
+                validationLabel.setText("Branch code format is invalid.");
+                saveButton.setDisable(true);
+                return;
+            }
+
+            validationLabel.setText("");
+            saveButton.setDisable(false);
+        };
+
+        nameField.textProperty().addListener((obs, oldV, newV) -> validateLive.run());
+        locationField.textProperty().addListener((obs, oldV, newV) -> validateLive.run());
+        codeField.textProperty().addListener((obs, oldV, newV) -> {
+            String normalized = normalizeCode(newV);
+            if (!normalized.equals(newV == null ? "" : newV)) {
+                codeField.setText(normalized);
+            }
+            validateLive.run();
+        });
+
+        dialog.setResultConverter(buttonType -> {
+            if (buttonType != saveButtonType) return null;
+            return new BranchFormResult(
+                nameField.getText().trim(),
+                locationField.getText().trim(),
+                normalizeCode(codeField.getText())
+            );
+        });
+
+        Optional<BranchFormResult> result = dialog.showAndWait();
+        if (result.isEmpty()) return;
+
+        BranchFormResult form = result.get();
+
+        int branchId;
+        try {
+            branchId = Integer.parseInt(selected.branchId);
+        } catch (NumberFormatException ex) {
+            showAlert(Alert.AlertType.ERROR, "Invalid Branch", "Could not resolve selected branch ID.");
+            return;
+        }
+
+        if (branchNameExistsForOtherBranch(branchId, form.name)) {
+            showAlert(Alert.AlertType.WARNING, "Duplicate Branch", "An active branch with this name already exists.");
+            return;
+        }
+
+        if (branchCodeExistsForOtherBranch(branchId, form.code)) {
+            showAlert(Alert.AlertType.WARNING, "Duplicate Code", "This branch code is already in use.");
+            return;
+        }
+
+        if (!updateBranch(branchId, form.name, form.location, form.code)) {
+            showAlert(Alert.AlertType.ERROR, "Update Failed", "Could not update branch details. Please try again.");
+            return;
+        }
+
+        loadBranches();
+        selectBranchByName(form.name);
+        showAlert(Alert.AlertType.INFORMATION, "Branch Updated", "Branch details were updated successfully.");
+    }
+
+    private boolean branchNameExistsForOtherBranch(int branchId, String name) {
+        if (name == null || name.isBlank()) return false;
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT COUNT(*) FROM branches WHERE LOWER(name) = LOWER(?) AND active = 1 AND id <> ?"
+            )) {
+                stmt.setString(1, name.trim());
+                stmt.setInt(2, branchId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return rs.next() && rs.getInt(1) > 0;
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean branchCodeExistsForOtherBranch(int branchId, String code) {
+        if (code == null || code.isBlank()) return false;
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT COUNT(*) FROM branches WHERE UPPER(code) = UPPER(?) AND id <> ?"
+            )) {
+                stmt.setString(1, code.trim());
+                stmt.setInt(2, branchId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return rs.next() && rs.getInt(1) > 0;
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean updateBranch(int branchId, String name, String location, String code) {
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement(
+                "UPDATE branches SET name = ?, department = ?, code = ? WHERE id = ?"
+            )) {
+                stmt.setString(1, name);
+                stmt.setString(2, location);
+                stmt.setString(3, code);
+                stmt.setInt(4, branchId);
+                return stmt.executeUpdate() > 0;
+            }
+        } catch (Exception e) {
+            return false;
         }
     }
 
     @FXML
     private void deleteSelectedBranch() {
-        if (branchesTable.getSelectionModel().getSelectedItem() != null) {
-            showAlert("Info", "Confirmation required before deleting branch");
+        BranchRecord selected = branchesTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert(Alert.AlertType.WARNING, "No Branch Selected", "Select a branch first, then click Delete Selected.");
+            return;
         }
+
+        int branchId;
+        try {
+            branchId = Integer.parseInt(selected.branchId);
+        } catch (NumberFormatException ex) {
+            showAlert(Alert.AlertType.ERROR, "Invalid Branch", "Could not resolve selected branch ID.");
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Delete Branch");
+        confirm.setHeaderText("Deactivate branch '" + selected.branchName + "'?");
+        confirm.setContentText("This action deactivates the branch. It can fail if branch has linked active data.");
+
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            confirm.initOwner(owner);
+        }
+
+        Optional<ButtonType> decision = confirm.showAndWait();
+        if (decision.isEmpty() || decision.get() != ButtonType.OK) {
+            return;
+        }
+
+        boolean deactivated = branchService.deactivateBranch(branchId);
+        if (!deactivated) {
+            showAlert(Alert.AlertType.WARNING, "Cannot Delete Branch",
+                "Branch has linked books/members/issues/admins. Remove or reassign them first.");
+            return;
+        }
+
+        loadBranches();
+        showAlert(Alert.AlertType.INFORMATION, "Branch Deactivated", "Branch was deactivated successfully.");
     }
 
     @FXML
@@ -422,7 +637,129 @@ public class BranchManagementController {
 
     @FXML
     private void reassignAdmin() {
-        showAlert("Info", "Admin reassignment dialog will open");
+        BranchRecord selectedBranch = branchesTable.getSelectionModel().getSelectedItem();
+        if (selectedBranch == null) {
+            showAlert(Alert.AlertType.WARNING, "No Branch Selected", "Select a branch first to reassign admin.");
+            return;
+        }
+
+        List<String> candidates = fetchAssignableAdmins(selectedBranch);
+        if (candidates.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "No Admin Available",
+                "No unassigned admin/librarian was found for this branch.");
+            return;
+        }
+
+        Dialog<String> dialog = new Dialog<>();
+        dialog.setTitle("Reassign Branch Admin");
+        dialog.setHeaderText("Select admin for " + selectedBranch.branchName);
+
+        Window owner = getOwnerWindow();
+        if (owner != null) {
+            dialog.initOwner(owner);
+        }
+
+        ButtonType assignButtonType = new ButtonType("Assign", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(assignButtonType, ButtonType.CANCEL);
+
+        ComboBox<String> adminCombo = new ComboBox<>(FXCollections.observableArrayList(candidates));
+        adminCombo.setPromptText("Select admin/librarian");
+        if (!selectedBranch.admin.isBlank() && candidates.contains(selectedBranch.admin)) {
+            adminCombo.setValue(selectedBranch.admin);
+        }
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(12, 16, 8, 16));
+        grid.add(new Label("Admin Account"), 0, 0);
+        grid.add(adminCombo, 1, 0);
+
+        dialog.getDialogPane().setContent(grid);
+
+        Button assignButton = (Button) dialog.getDialogPane().lookupButton(assignButtonType);
+        assignButton.setDisable(true);
+        adminCombo.valueProperty().addListener((obs, oldV, newV) -> assignButton.setDisable(newV == null || newV.isBlank()));
+
+        dialog.setResultConverter(buttonType -> buttonType == assignButtonType ? adminCombo.getValue() : null);
+
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) return;
+
+        if (!reassignBranchAdmin(selectedBranch, result.get())) {
+            showAlert(Alert.AlertType.ERROR, "Reassignment Failed", "Could not reassign admin. Please try again.");
+            return;
+        }
+
+        loadBranches();
+        selectBranchByName(selectedBranch.branchName);
+        showAlert(Alert.AlertType.INFORMATION, "Admin Reassigned", "Branch admin was updated successfully.");
+    }
+
+    private List<String> fetchAssignableAdmins(BranchRecord branch) {
+        List<String> candidates = new ArrayList<>();
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                SELECT username
+                FROM users
+                WHERE role IN ('ADMIN','LIBRARIAN')
+                  AND (branch_id IS NULL OR branch_id = ?)
+                ORDER BY username
+            """)) {
+                stmt.setInt(1, Integer.parseInt(branch.branchId));
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        candidates.add(safe(rs.getString("username")));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Empty fallback.
+        }
+        return candidates;
+    }
+
+    private boolean reassignBranchAdmin(BranchRecord branch, String username) {
+        if (username == null || username.isBlank()) return false;
+        try {
+            int branchId = Integer.parseInt(branch.branchId);
+            Connection conn = DatabaseConnection.getConnection();
+
+            boolean autoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                try (PreparedStatement clearStmt = conn.prepareStatement(
+                    "UPDATE users SET branch_id = NULL WHERE branch_id = ? AND role IN ('ADMIN','LIBRARIAN')"
+                )) {
+                    clearStmt.setInt(1, branchId);
+                    clearStmt.executeUpdate();
+                }
+
+                try (PreparedStatement assignStmt = conn.prepareStatement(
+                    "UPDATE users SET branch_id = ? WHERE username = ? AND role IN ('ADMIN','LIBRARIAN')"
+                )) {
+                    assignStmt.setInt(1, branchId);
+                    assignStmt.setString(2, username);
+                    int updated = assignStmt.executeUpdate();
+                    if (updated <= 0) {
+                        conn.rollback();
+                        conn.setAutoCommit(autoCommit);
+                        return false;
+                    }
+                }
+
+                conn.commit();
+                conn.setAutoCommit(autoCommit);
+                return true;
+            } catch (Exception e) {
+                conn.rollback();
+                conn.setAutoCommit(autoCommit);
+                return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @FXML
@@ -476,12 +813,94 @@ public class BranchManagementController {
 
     @FXML
     private void exportBranchList() {
-        showAlert("Info", "Export branch list action triggered");
+        if (branchesTable.getItems() == null || branchesTable.getItems().isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Nothing To Export", "No branch rows available to export.");
+            return;
+        }
+
+        String path = ExportService.exportToCSV(branchesTable, "branch_list");
+        if (path == null || path.isBlank()) {
+            showAlert(Alert.AlertType.ERROR, "Export Failed", "Could not export branch list.");
+            return;
+        }
+
+        showAlert(Alert.AlertType.INFORMATION, "Export Complete", "Branch list exported to:\n" + path);
     }
 
     @FXML
     private void exportPerformanceReport() {
-        showAlert("Info", "Export performance report action triggered");
+        String[] headers = {
+            "Branch ID", "Branch Name", "Location", "Total Books", "Available Books", "Total Members",
+            "Issued", "Returned", "Overdue", "Total Fines"
+        };
+        String[][] rows = fetchPerformanceReportRows();
+        if (rows.length == 0) {
+            showAlert(Alert.AlertType.WARNING, "Nothing To Export", "No branch performance data found.");
+            return;
+        }
+
+        String path = ExportService.exportReport(
+            "Branch Performance Report",
+            "Branch Management",
+            headers,
+            rows,
+            "CSV"
+        );
+
+        if (path == null || path.isBlank()) {
+            showAlert(Alert.AlertType.ERROR, "Export Failed", "Could not export performance report.");
+            return;
+        }
+
+        showAlert(Alert.AlertType.INFORMATION, "Export Complete", "Performance report exported to:\n" + path);
+    }
+
+    private String[][] fetchPerformanceReportRows() {
+        List<String[]> rows = new ArrayList<>();
+
+        try {
+            Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                SELECT b.id,
+                       COALESCE(b.name, '') AS name,
+                       COALESCE(b.department, '') AS location,
+                       COUNT(DISTINCT bk.id) AS total_books,
+                       COALESCE(SUM(bk.available_copies), 0) AS available_books,
+                       COUNT(DISTINCT m.id) AS total_members,
+                       COALESCE(SUM(CASE WHEN ir.status = 'ISSUED' THEN 1 ELSE 0 END), 0) AS issued,
+                       COALESCE(SUM(CASE WHEN ir.status = 'RETURNED' THEN 1 ELSE 0 END), 0) AS returned,
+                       COALESCE(SUM(CASE WHEN ir.status = 'OVERDUE' THEN 1 ELSE 0 END), 0) AS overdue,
+                       COALESCE(SUM(CASE WHEN ir.status = 'OVERDUE' THEN ir.fine_amount ELSE 0 END), 0) AS total_fines
+                FROM branches b
+                LEFT JOIN books bk ON bk.branch_id = b.id
+                LEFT JOIN members m ON m.branch_id = b.id
+                LEFT JOIN issue_records ir ON ir.branch_id = b.id
+                WHERE b.active = 1
+                GROUP BY b.id, b.name, b.department
+                ORDER BY b.name
+            """)) {
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        rows.add(new String[] {
+                            safe(rs.getString("id")),
+                            safe(rs.getString("name")),
+                            safe(rs.getString("location")),
+                            String.valueOf(rs.getInt("total_books")),
+                            String.valueOf(rs.getInt("available_books")),
+                            String.valueOf(rs.getInt("total_members")),
+                            String.valueOf(rs.getInt("issued")),
+                            String.valueOf(rs.getInt("returned")),
+                            String.valueOf(rs.getInt("overdue")),
+                            String.format("%.2f", rs.getDouble("total_fines"))
+                        });
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // Empty fallback.
+        }
+
+        return rows.toArray(new String[0][]);
     }
 
     private String safe(String value) {

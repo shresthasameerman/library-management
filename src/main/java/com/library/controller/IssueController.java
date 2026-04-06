@@ -575,13 +575,26 @@ public class IssueController implements Initializable {
             return;
         }
 
+        LocalDate today = LocalDate.now();
+        LocalDate dueDate = LocalDate.parse(selected.getDueDate());
+        if (today.isBefore(dueDate)) {
+            AlertHelper.showError(
+                "Renewal Not Allowed Yet",
+                "This book can be renewed only on or after its due date.\n" +
+                "Due Date: " + selected.getDueDate()
+            );
+            return;
+        }
+
         Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
         confirm.setTitle("Renew Issue");
         confirm.setHeaderText("Renew: " + selected.getBookTitle());
         confirm.setContentText(
             "Accession: " + selected.getAccessionNumber() + "\n" +
             "Current Due Date: " + selected.getDueDate() + "\n\n" +
-            "Extend by " + issueService.getLoanDays() + " days?"
+            "Set new due date to " +
+                today.plusDays(issueService.getLoanDays()) +
+                " (" + issueService.getLoanDays() + " days from today)?"
         );
 
         confirm.showAndWait().ifPresent(result -> {
@@ -592,9 +605,12 @@ public class IssueController implements Initializable {
                     loadReturnBooks();
                     loadOverdueBooks();
                     updateStats();
-                    AlertHelper.showSuccess("Renewed", "Due date extended successfully.");
+                    AlertHelper.showSuccess("Renewed", "Due date updated successfully.");
                 } else {
-                    AlertHelper.showError("Renew Failed", "Could not renew selected record.");
+                    AlertHelper.showError(
+                        "Renew Failed",
+                        "Renewal is only allowed on/after the due date for active issued records."
+                    );
                 }
             }
         });

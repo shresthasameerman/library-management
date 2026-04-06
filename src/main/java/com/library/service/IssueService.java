@@ -212,10 +212,11 @@ public class IssueService {
         try {
             PreparedStatement stmt = conn.prepareStatement("""
                 UPDATE issue_records
-                SET due_date = DATE(due_date, ?),
+                                SET due_date = DATE('now', ?),
                     status = 'ISSUED'
                 WHERE id = ?
                   AND status IN ('ISSUED', 'OVERDUE')
+                                    AND due_date <= DATE('now')
                 %s
             """.formatted(BranchScope.isScoped() ? "AND branch_id = ?" : ""));
             stmt.setString(1, "+" + extendDays + " day");

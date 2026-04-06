@@ -21,12 +21,13 @@ public class BookCopyService {
             Connection conn = DatabaseConnection.getConnection();
             Integer branchId = resolveBookBranchId(conn, bookId);
             PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO book_copies (book_id, accession_number, branch_id) " +
-                "VALUES (?, ?, ?)"
+                "INSERT INTO book_copies (book_id, accession_number, spine_level, branch_id) " +
+                "VALUES (?, ?, ?, ?)"
             );
             stmt.setInt(1, bookId);
             stmt.setString(2, accessionNumber);
-            stmt.setObject(3, branchId);
+            stmt.setString(3, "");
+            stmt.setObject(4, branchId);
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
@@ -38,19 +39,33 @@ public class BookCopyService {
 
     // ── Add multiple copies at once ───────────────────────────────────
     public boolean addCopies(int bookId, List<String> accessionNumbers) {
+        List<String> emptySpineLevels = new ArrayList<>();
+        for (int i = 0; i < accessionNumbers.size(); i++) {
+            emptySpineLevels.add("");
+        }
+        return addCopies(bookId, accessionNumbers, emptySpineLevels);
+    }
+
+    public boolean addCopies(int bookId, List<String> accessionNumbers,
+                             List<String> spineLevels) {
         clearLastError();
         Connection conn = DatabaseConnection.getConnection();
         try {
             conn.setAutoCommit(false);
             Integer branchId = resolveBookBranchId(conn, bookId);
             PreparedStatement stmt = conn.prepareStatement(
-                "INSERT INTO book_copies (book_id, accession_number, branch_id) " +
-                "VALUES (?, ?, ?)"
+                "INSERT INTO book_copies (book_id, accession_number, spine_level, branch_id) " +
+                "VALUES (?, ?, ?, ?)"
             );
-            for (String acc : accessionNumbers) {
+            for (int i = 0; i < accessionNumbers.size(); i++) {
+                String acc = accessionNumbers.get(i);
+                String spineLevel = (spineLevels != null && i < spineLevels.size())
+                    ? spineLevels.get(i)
+                    : "";
                 stmt.setInt(1, bookId);
                 stmt.setString(2, acc.trim());
-                stmt.setObject(3, branchId);
+                stmt.setString(3, spineLevel == null ? "" : spineLevel.trim());
+                stmt.setObject(4, branchId);
                 stmt.addBatch();
             }
             stmt.executeBatch();
@@ -119,7 +134,7 @@ public class BookCopyService {
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
-                "SELECT id, book_id, accession_number, status " +
+                "SELECT id, book_id, accession_number, spine_level, status " +
                 "FROM book_copies WHERE book_id = ? " +
                 (BranchScope.isScoped() ? "AND branch_id = ? " : "") +
                 "ORDER BY accession_number ASC"
@@ -132,6 +147,7 @@ public class BookCopyService {
                     rs.getInt("id"),
                     rs.getInt("book_id"),
                     rs.getString("accession_number"),
+                    rs.getString("spine_level"),
                     rs.getString("status")
                 ));
             }
@@ -149,6 +165,7 @@ public class BookCopyService {
             ensureCopyRowsForBook(bookId, conn);
             PreparedStatement stmt = conn.prepareStatement("""
                 SELECT bc.accession_number,
+                      bc.spine_level,
                        bc.status,
                        m.name AS issued_to,
                        ir.due_date
@@ -171,6 +188,7 @@ public class BookCopyService {
 
                 rows.add(new BookCopyDetail(
                     rs.getString("accession_number"),
+                    rs.getString("spine_level"),
                     rs.getString("status"),
                     issuedTo != null ? issuedTo : "-",
                     dueDate != null ? dueDate : "-"
@@ -188,7 +206,7 @@ public class BookCopyService {
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
-                "SELECT id, book_id, accession_number, status " +
+                "SELECT id, book_id, accession_number, spine_level, status " +
                 "FROM book_copies " +
                 "WHERE book_id = ? AND status = 'AVAILABLE' " +
                 (BranchScope.isScoped() ? "AND branch_id = ? " : "") +
@@ -202,6 +220,7 @@ public class BookCopyService {
                     rs.getInt("id"),
                     rs.getInt("book_id"),
                     rs.getString("accession_number"),
+                    rs.getString("spine_level"),
                     rs.getString("status")
                 ));
             }
@@ -249,7 +268,7 @@ public class BookCopyService {
         try {
             Connection conn = DatabaseConnection.getConnection();
             PreparedStatement stmt = conn.prepareStatement(
-                "SELECT id, book_id, accession_number, status " +
+                "SELECT id, book_id, accession_number, spine_level, status " +
                 "FROM book_copies WHERE accession_number = ?" +
                 BranchScope.andClause("branch_id")
             );
@@ -261,6 +280,7 @@ public class BookCopyService {
                     rs.getInt("id"),
                     rs.getInt("book_id"),
                     rs.getString("accession_number"),
+                    rs.getString("spine_level"),
                     rs.getString("status")
                 );
             }
@@ -364,7 +384,7 @@ public class BookCopyService {
         boolean previousAutoCommit = conn.getAutoCommit();
         conn.setAutoCommit(false);
         try (PreparedStatement insertStmt = conn.prepareStatement(
-            "INSERT INTO book_copies (book_id, accession_number, branch_id, status) VALUES (?, ?, ?, 'AVAILABLE')"
+            "INSERT INTO book_copies (book_id, accession_number, spine_level, branch_id, status) VALUES (?, ?, ?, ?, 'AVAILABLE')"
         )) {
             for (String accession : accessions) {
                 String candidate = accession;
@@ -374,7 +394,8 @@ public class BookCopyService {
                 }
                 insertStmt.setInt(1, bookId);
                 insertStmt.setString(2, candidate);
-                insertStmt.setObject(3, branchId);
+                insertStmt.setString(3, "");
+                insertStmt.setObject(4, branchId);
                 insertStmt.addBatch();
             }
             insertStmt.executeBatch();

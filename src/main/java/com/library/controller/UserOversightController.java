@@ -3,6 +3,7 @@ package com.library.controller;
 import com.library.database.DatabaseConnection;
 import com.library.model.User;
 import com.library.service.UserAdminService;
+import com.library.util.ExportService;
 import com.library.util.SessionManager;
 
 import javafx.beans.property.SimpleStringProperty;
@@ -566,12 +567,34 @@ public class UserOversightController {
 
     @FXML
     private void exportAdminList() {
-        showInfo("Export", "Admin list export triggered");
+        if (adminTable.getItems() == null || adminTable.getItems().isEmpty()) {
+            showWarning("Nothing To Export", "No admin rows available to export.");
+            return;
+        }
+
+        String path = ExportService.exportToCSV(adminTable, "admin_list");
+        if (path == null || path.isBlank()) {
+            showError("Export Failed", "Could not export admin list.");
+            return;
+        }
+
+        showInfo("Export Complete", "Admin list exported to:\n" + path);
     }
 
     @FXML
     private void exportActivityLogs() {
-        showInfo("Export", "Activity logs export triggered");
+        if (activityLogsTable.getItems() == null || activityLogsTable.getItems().isEmpty()) {
+            showWarning("Nothing To Export", "No activity logs available to export.");
+            return;
+        }
+
+        String path = ExportService.exportToCSV(activityLogsTable, "activity_logs");
+        if (path == null || path.isBlank()) {
+            showError("Export Failed", "Could not export activity logs.");
+            return;
+        }
+
+        showInfo("Export Complete", "Activity logs exported to:\n" + path);
     }
 
     private String safe(String value) {

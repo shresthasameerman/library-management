@@ -1,7 +1,9 @@
 package com.library.controller;
 
 import com.library.database.DatabaseConnection;
+import com.library.model.Member;
 import com.library.model.User;
+import com.library.service.MemberService;
 import com.library.util.SessionManager;
 
 import javafx.fxml.FXML;
@@ -21,6 +23,8 @@ public class LoginController {
     @FXML private TextField     usernameField;
     @FXML private PasswordField passwordField;
     @FXML private Label         errorLabel;
+
+    private final MemberService memberService = new MemberService();
 
     @FXML
     private void handleLogin() {
@@ -66,12 +70,33 @@ public class LoginController {
                     }
 
                     // ── Login success ─────────────────────────────
-                    User user = new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        normalizedRole,
-                        branchId
-                    );
+                    User user;
+                    if ("STUDENT".equals(normalizedRole)) {
+                        Member member = memberService.getMemberByMemberId(username);
+                        if (member == null) {
+                            showError("Student profile not found for this Member ID.");
+                            return;
+                        }
+                        if (!member.isActive()) {
+                            showError("This student account is inactive.");
+                            return;
+                        }
+
+                        user = new User(
+                            rs.getInt("id"),
+                            rs.getString("username"),
+                            normalizedRole,
+                            branchId,
+                            member.getId()
+                        );
+                    } else {
+                        user = new User(
+                            rs.getInt("id"),
+                            rs.getString("username"),
+                            normalizedRole,
+                            branchId
+                        );
+                    }
                     SessionManager.setCurrentUser(user);
                     System.out.println("✓ Logged in as: " + user);
 
@@ -98,6 +123,9 @@ public class LoginController {
             if ("SUPERADMIN".equals(role) || "SUPER_ADMIN".equals(role)) {
                 fxmlFile = "/com/library/fxml/SuperAdminDashboard.fxml";
                 title = "Library Management System — SuperAdmin Dashboard";
+            } else if ("STUDENT".equals(role)) {
+                fxmlFile = "/com/library/fxml/StudentDashboard.fxml";
+                title = "Library Management System — Student Portal";
             } else {
                 // ADMIN or LIBRARIAN
                 fxmlFile = "/com/library/fxml/Dashboard.fxml";
@@ -114,6 +142,10 @@ public class LoginController {
             if ("SUPERADMIN".equals(role) || "SUPER_ADMIN".equals(role)) {
                 scene.getStylesheets().add(
                     getClass().getResource("/com/library/css/superadmin.css").toExternalForm()
+                );
+            } else if ("STUDENT".equals(role)) {
+                scene.getStylesheets().add(
+                    getClass().getResource("/com/library/css/style.css").toExternalForm()
                 );
             }
 

@@ -223,6 +223,9 @@ public class BookController implements Initializable {
         TableColumn<BookCopyDetail, String> accCol = new TableColumn<>("Accession No.");
         accCol.setCellValueFactory(new PropertyValueFactory<>("accessionNumber"));
 
+        TableColumn<BookCopyDetail, String> spineCol = new TableColumn<>("Spine Level");
+        spineCol.setCellValueFactory(new PropertyValueFactory<>("spineLevel"));
+
         TableColumn<BookCopyDetail, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setCellFactory(col -> new TableCell<>() {
@@ -249,7 +252,7 @@ public class BookController implements Initializable {
         TableColumn<BookCopyDetail, String> dueDateCol = new TableColumn<>("Return Date");
         dueDateCol.setCellValueFactory(new PropertyValueFactory<>("dueDate"));
 
-        copyTable.getColumns().addAll(accCol, statusCol, issuedToCol, dueDateCol);
+        copyTable.getColumns().addAll(accCol, spineCol, statusCol, issuedToCol, dueDateCol);
         copyTable.setItems(FXCollections.observableArrayList(
             copyService.getCopyDetailsForBook(book.getId())
         ));
@@ -326,6 +329,7 @@ public class BookController implements Initializable {
         List<com.library.model.BookCopy> copies = copyService.getCopiesForBook(book.getId());
         String selectedAccession;
         String selectedStatus;
+        String selectedSpineLevel;
 
         if (!copies.isEmpty()) {
             ChoiceDialog<com.library.model.BookCopy> chooseCopy =
@@ -343,10 +347,16 @@ public class BookController implements Initializable {
 
             selectedAccession = safe(chosen.get().getAccessionNumber());
             selectedStatus = safe(chosen.get().getStatus());
+            selectedSpineLevel = safe(chosen.get().getSpineLevel());
         } else {
             // Backward-compatible fallback for older rows with no copy records.
             selectedAccession = safe(book.getAccessionNumber());
             selectedStatus = book.getAvailableCopies() > 0 ? "AVAILABLE" : "ISSUED";
+            selectedSpineLevel = buildSpineLevel(
+                book.getClassificationNumber(),
+                book.getCutterNumber(),
+                String.valueOf(book.getYearOfPublication())
+            );
         }
 
         String content = String.format(
@@ -355,8 +365,9 @@ public class BookController implements Initializable {
             "Author: %s\n" +
             "Accession: %s\n" +
             "Copy Status: %s\n" +
+            "Spine Level: %s\n" +
             "Class No: %s\n" +
-            "Cutter No: %s\n" +
+            "Book Number: %s\n" +
             "Edition: %s\n" +
             "Publisher: %s\n" +
             "Category: %s",
@@ -364,6 +375,7 @@ public class BookController implements Initializable {
             safe(book.getAuthor()),
             selectedAccession,
             selectedStatus,
+            selectedSpineLevel,
             safe(book.getClassificationNumber()),
             safe(book.getCutterNumber()),
             safe(book.getEdition()),
@@ -391,8 +403,9 @@ public class BookController implements Initializable {
         Label infoLbl = new Label(
             "Accession : " + selectedAccession + "\n" +
             "Status    : " + selectedStatus + "\n" +
+            "Spine     : " + selectedSpineLevel + "\n" +
             "Class No  : " + book.getClassificationNumber() + "\n" +
-            "Cutter    : " + book.getCutterNumber() + "\n" +
+            "Book No   : " + book.getCutterNumber() + "\n" +
             "Edition   : " + book.getEdition() + "\n" +
             "Publisher : " + book.getPublisher()
         );
@@ -452,7 +465,7 @@ public class BookController implements Initializable {
         TextField authorField         = field("e.g. Thomas H. Cormen");
         TextField isbnField           = field("e.g. 978-0262033848");
         TextField classificationField = field("e.g. 005.1 COR");
-        TextField cutterField         = field("e.g. C813i");
+        TextField cutterField         = field("e.g. B813");
         TextField editionField        = field("e.g. 3rd Edition");
         TextField publisherField      = field("e.g. MIT Press");
         TextField placeField          = field("e.g. Cambridge, MA");
@@ -475,22 +488,39 @@ public class BookController implements Initializable {
 
         // ── Accession Number List ─────────────────────────────────────
         // Each copy gets its own accession number entered in a list
-        ObservableList<String> accessionList =
+        ObservableList<CopyEntry> accessionList =
             FXCollections.observableArrayList();
 
         // Pre-load existing copies if editing
         if (isEdit) {
             copyService.getCopiesForBook(existing.getId())
-                .forEach(c -> accessionList.add(
-                    c.getAccessionNumber() + " [" + c.getStatus() + "]"
-                ));
+                .forEach(c -> accessionList.add(new CopyEntry(
+                    c.getAccessionNumber(),
+                    c.getStatus(),
+                    c.getSpineLevel(),
+                    true
+                )));
         }
 
-        ListView<String> accessionListView = new ListView<>(accessionList);
+        ListView<CopyEntry> accessionListView = new ListView<>(accessionList);
         accessionListView.setPrefHeight(120);
         accessionListView.setStyle(
             "-fx-background-color: #f8f9fa;" +
             "-fx-border-color: #e2e8f0; -fx-border-radius: 6;");
+        accessionListView.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(CopyEntry item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    return;
+                }
+                String spine = item.spineLevel == null || item.spineLevel.isBlank()
+                    ? "-"
+                    : item.spineLevel;
+                setText(item.accessionNumber + " [" + item.status + "]  •  Spine: " + spine);
+            }
+        });
 
         TextField newAccessionField = field("Enter starting accession number");
         newAccessionField.setPrefWidth(200);
@@ -562,12 +592,8 @@ public class BookController implements Initializable {
 
             // Check duplicates in list and DB before adding anything
             for (String acc : generated) {
-                boolean dupInList = accessionList.stream().anyMatch(item -> {
-                    String clean = item.contains(" [")
-                        ? item.substring(0, item.indexOf(" [")).trim()
-                        : item.trim();
-                    return clean.equals(acc);
-                });
+                boolean dupInList = accessionList.stream()
+                    .anyMatch(item -> item.accessionNumber.equals(acc));
                 if (dupInList) {
                     accStatusLabel.setText("⚠ " + acc + " already in list.");
                     accStatusLabel.setStyle(
@@ -583,10 +609,17 @@ public class BookController implements Initializable {
                 }
             }
 
-            accessionList.addAll(generated);
+            String spineLevel = buildSpineLevel(
+                classificationField.getText().trim(),
+                cutterField.getText().trim(),
+                yearField.getText().trim()
+            );
+            for (String acc : generated) {
+                accessionList.add(new CopyEntry(acc, "AVAILABLE", spineLevel, false));
+            }
             newAccessionField.clear();
             accStatusLabel.setText(
-                "✓ Added " + generated.size() + " copies. Total: " +
+                "✓ Added " + generated.size() + " copies (Spine: " + spineLevel + "). Total: " +
                 accessionList.size() + " copies.");
             accStatusLabel.setStyle(
                 "-fx-font-size: 11px; -fx-text-fill: #2dc653;");
@@ -597,11 +630,11 @@ public class BookController implements Initializable {
 
         // Remove selected
         removeAccBtn.setOnAction(e -> {
-            String selected = accessionListView.getSelectionModel()
+            CopyEntry selected = accessionListView.getSelectionModel()
                 .getSelectedItem();
             if (selected != null) {
                 // Don't allow removing ISSUED copies
-                if (selected.contains("[ISSUED]")) {
+                if ("ISSUED".equals(selected.status)) {
                     accStatusLabel.setText("⚠ Cannot remove - copy is issued.");
                     accStatusLabel.setStyle(
                         "-fx-font-size: 11px; -fx-text-fill: #e63946;");
@@ -674,7 +707,7 @@ public class BookController implements Initializable {
         // ── Right column ──────────────────────────────────────────────
         VBox rightCol = new VBox(10,
             lbl("Classification No.",   lblStyle), classificationField,
-            lbl("Cutter Number",        lblStyle), cutterField,
+            lbl("Book Number",          lblStyle), cutterField,
             lbl("Edition",              lblStyle), editionField,
             lbl("Publisher",            lblStyle), publisherField,
             lbl("Place of Publication", lblStyle), placeField,
@@ -746,10 +779,12 @@ public class BookController implements Initializable {
 
             // Collect NEW accession numbers (not already in DB)
             List<String> newAccessions = new ArrayList<>();
-            for (String item : accessionList) {
-                // Skip items that are already in DB (show as "ACC [STATUS]")
-                if (!item.contains(" [")) {
-                    newAccessions.add(item.trim());
+            List<String> newSpineLevels = new ArrayList<>();
+            String autoSpineLevel = buildSpineLevel(classNo, cutter, yearStr);
+            for (CopyEntry item : accessionList) {
+                if (!item.existing) {
+                    newAccessions.add(item.accessionNumber.trim());
+                    newSpineLevels.add(autoSpineLevel);
                 }
             }
 
@@ -805,9 +840,7 @@ public class BookController implements Initializable {
 
             // Use first accession as book's main accession
             String mainAccession = accessionList.isEmpty() ? ""
-                : accessionList.get(0).replace(" [AVAILABLE]", "")
-                               .replace(" [ISSUED]", "")
-                               .replace(" [LOST]", "").trim();
+                : accessionList.get(0).accessionNumber;
 
             Book book = new Book(
                 isEdit ? existing.getId() : 0,
@@ -829,7 +862,11 @@ public class BookController implements Initializable {
 
                 // Save new copies to book_copies table
                 if (!newAccessions.isEmpty()) {
-                    boolean copiesSaved = copyService.addCopies(bookId, newAccessions);
+                    boolean copiesSaved = copyService.addCopies(
+                        bookId,
+                        newAccessions,
+                        newSpineLevels
+                    );
                     if (!copiesSaved) {
                         if (!isEdit) {
                             // Avoid leaving a branch book row without its copy-sheet data.
@@ -885,5 +922,35 @@ public class BookController implements Initializable {
     private Label withPadding(Label label, Insets insets) {
         label.setPadding(insets);
         return label;
+    }
+
+    private String buildSpineLevel(String classificationNumber,
+                                   String bookNumber,
+                                   String publishedYear) {
+        String cls = normalizeSpinePart(classificationNumber, "NA");
+        String book = normalizeSpinePart(bookNumber, "NA");
+        String year = normalizeSpinePart(publishedYear, "NA");
+        return cls + "-" + book + "-" + year;
+    }
+
+    private String normalizeSpinePart(String value, String fallback) {
+        if (value == null || value.isBlank()) return fallback;
+        String cleaned = value.trim().replaceAll("\\s+", "").toUpperCase();
+        return cleaned.isBlank() ? fallback : cleaned;
+    }
+
+    private static final class CopyEntry {
+        private final String accessionNumber;
+        private final String status;
+        private final String spineLevel;
+        private final boolean existing;
+
+        private CopyEntry(String accessionNumber, String status,
+                          String spineLevel, boolean existing) {
+            this.accessionNumber = accessionNumber;
+            this.status = status;
+            this.spineLevel = spineLevel;
+            this.existing = existing;
+        }
     }
 }

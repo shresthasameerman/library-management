@@ -31,7 +31,7 @@ public class DatabaseInitializer {
                     username      TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     role          TEXT NOT NULL
-                                  CHECK(role IN ('SUPER_ADMIN','SUPERADMIN','ADMIN','LIBRARIAN')),
+                                  CHECK(role IN ('SUPER_ADMIN','SUPERADMIN','ADMIN','LIBRARIAN','STUDENT')),
                     branch_id     INTEGER,
                     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(branch_id) REFERENCES branches(id)
@@ -86,6 +86,7 @@ public class DatabaseInitializer {
                     id               INTEGER PRIMARY KEY AUTOINCREMENT,
                     book_id          INTEGER NOT NULL,
                     accession_number TEXT UNIQUE NOT NULL,
+                    spine_level      TEXT,
                     branch_id        INTEGER,
                     status           TEXT DEFAULT 'AVAILABLE'
                                      CHECK(status IN ('AVAILABLE','ISSUED','LOST')),
@@ -144,6 +145,11 @@ public class DatabaseInitializer {
                 } catch (SQLException ignored) {}
             }
 
+            // Book copies — spine level per accession copy
+            try {
+                stmt.execute("ALTER TABLE book_copies ADD COLUMN spine_level TEXT");
+            } catch (SQLException ignored) {}
+
             // Members — intake
             try {
                 stmt.execute(
@@ -197,9 +203,11 @@ public class DatabaseInitializer {
 
             int defaultBranchId = seedDefaultBranch(conn);
             backfillBranchData(conn, defaultBranchId);
+            normalizeEarlyRenewedActiveIssues(conn);
 
             // ── Seed default users ────────────────────────────────────
             seedDefaultUsers(conn, defaultBranchId);
+            seedStudentUsersFromExistingMembers(conn);
 
             System.out.println("✓ Database initialized successfully.");
 
@@ -219,9 +227,7 @@ public class DatabaseInitializer {
             if (rs.next()) tableSql = rs.getString(1);
         }
 
-        if (tableSql == null
-                || tableSql.contains("SUPER_ADMIN")
-                || tableSql.contains("SUPERADMIN")) {
+        if (tableSql == null || tableSql.contains("STUDENT")) {
             try (Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate(
                     "UPDATE users SET role = 'SUPER_ADMIN' WHERE role = 'SUPERADMIN'"
@@ -237,7 +243,7 @@ public class DatabaseInitializer {
                     username      TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     role          TEXT NOT NULL
-                                  CHECK(role IN ('SUPER_ADMIN','SUPERADMIN','ADMIN','LIBRARIAN')),
+                                  CHECK(role IN ('SUPER_ADMIN','SUPERADMIN','ADMIN','LIBRARIAN','STUDENT')),
                     branch_id     INTEGER,
                     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(branch_id) REFERENCES branches(id)
@@ -375,6 +381,70 @@ public class DatabaseInitializer {
                     insert.executeUpdate();
                     System.out.println("✓ Default librarian created → username: admin | password: admin123");
                 }
+            }
+        }
+    }
+
+    private static void seedStudentUsersFromExistingMembers(Connection conn)
+            throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(
+            """
+                SELECT m.id, m.member_id, m.branch_id
+                FROM members m
+                LEFT JOIN users u ON LOWER(u.username) = LOWER(m.member_id)
+                   AND u.role = 'STUDENT'
+                WHERE LOWER(COALESCE(m.member_type, 'Student')) = 'student'
+                  AND m.member_id IS NOT NULL
+                  AND TRIM(m.member_id) != ''
+                  AND u.id IS NULL
+            """
+        )) {
+            ResultSet rs = stmt.executeQuery();
+            int created = 0;
+            while (rs.next()) {
+                String memberId = rs.getString("member_id");
+                String tempPassword = memberId;
+                String hashed = org.mindrot.jbcrypt.BCrypt.hashpw(
+                    tempPassword,
+                    org.mindrot.jbcrypt.BCrypt.gensalt()
+                );
+
+                try (PreparedStatement insert = conn.prepareStatement(
+                    "INSERT INTO users (username, password_hash, role, branch_id) VALUES (?, ?, 'STUDENT', ?)"
+                )) {
+                    insert.setString(1, memberId);
+                    insert.setString(2, hashed);
+                    if (rs.getObject("branch_id") != null) {
+                        insert.setInt(3, rs.getInt("branch_id"));
+                    } else {
+                        insert.setNull(3, java.sql.Types.INTEGER);
+                    }
+                    insert.executeUpdate();
+                    created++;
+                }
+            }
+
+            if (created > 0) {
+                System.out.println("✓ Student login accounts seeded for existing members: " + created);
+                System.out.println("✓ Default student password for migrated accounts is the Member ID.");
+            }
+        }
+    }
+
+    private static void normalizeEarlyRenewedActiveIssues(Connection conn)
+            throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(
+            """
+                UPDATE issue_records
+                SET due_date = DATE(issue_date, '+14 day')
+                WHERE status IN ('ISSUED', 'OVERDUE')
+                  AND due_date > DATE(issue_date, '+14 day')
+                  AND DATE('now') < DATE(issue_date, '+14 day')
+            """
+        )) {
+            int updated = stmt.executeUpdate();
+            if (updated > 0) {
+                System.out.println("✓ Normalized early-renewed active issues: " + updated);
             }
         }
     }

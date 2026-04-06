@@ -297,6 +297,80 @@ public class MemberService {
         }
     }
 
+    public Member getMemberByMemberId(String memberId) {
+        if (memberId == null || memberId.isBlank()) {
+            return null;
+        }
+
+        String sql = """
+            SELECT id, name, email, phone, member_id,
+                   department, member_type, intake, active
+            FROM members
+            WHERE LOWER(member_id) = LOWER(?)
+            LIMIT 1
+        """;
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(sql);
+            stmt.setString(1, memberId.trim());
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String type = rs.getString("member_type");
+                String intakeVal = rs.getString("intake");
+                return new Member(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("email"),
+                    rs.getString("phone"),
+                    rs.getString("member_id"),
+                    rs.getString("department"),
+                    type != null ? type : "Student",
+                    intakeVal != null ? intakeVal : "",
+                    rs.getInt("active") == 1
+                );
+            }
+        } catch (SQLException e) {
+            System.err.println("Lookup member by member_id failed: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    public Member getMemberById(int memberId) {
+        String sql = """
+            SELECT id, name, email, phone, member_id,
+                   department, member_type, intake, active
+            FROM members
+            WHERE id = ?
+            LIMIT 1
+        """;
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection().prepareStatement(sql);
+            stmt.setInt(1, memberId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                String type = rs.getString("member_type");
+                String intakeVal = rs.getString("intake");
+                return new Member(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getString("email"),
+                    rs.getString("phone"),
+                    rs.getString("member_id"),
+                    rs.getString("department"),
+                    type != null ? type : "Student",
+                    intakeVal != null ? intakeVal : "",
+                    rs.getInt("active") == 1
+                );
+            }
+        } catch (SQLException e) {
+            System.err.println("Lookup member by id failed: " + e.getMessage());
+        }
+
+        return null;
+    }
+
     // ── Has active issues ─────────────────────────────────────────────
     public boolean hasActiveIssues(int memberId) {
         try {

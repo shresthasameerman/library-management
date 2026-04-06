@@ -79,6 +79,74 @@ public class UserAdminService {
         }
     }
 
+    public boolean createStudentUser(String username, String rawPassword, Integer branchId) {
+        return createUser(username, rawPassword, "STUDENT", branchId);
+    }
+
+    public boolean studentAccountExists(String username) {
+        return usernameExists(username);
+    }
+
+    public boolean updateStudentUsername(String oldUsername, String newUsername) {
+        if (oldUsername == null || newUsername == null || oldUsername.isBlank() || newUsername.isBlank()) {
+            return false;
+        }
+        if (oldUsername.equalsIgnoreCase(newUsername)) {
+            return true;
+        }
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement("UPDATE users SET username = ? WHERE username = ? AND role = 'STUDENT'");
+            stmt.setString(1, newUsername.trim());
+            stmt.setString(2, oldUsername.trim());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Update student username failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean deleteStudentUser(String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement("DELETE FROM users WHERE username = ? AND role = 'STUDENT'");
+            stmt.setString(1, username.trim());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Delete student user failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public boolean resetStudentPassword(int userId, String rawPassword) {
+        if (rawPassword == null || rawPassword.isBlank()) {
+            return false;
+        }
+
+        String hashed = org.mindrot.jbcrypt.BCrypt.hashpw(
+            rawPassword,
+            org.mindrot.jbcrypt.BCrypt.gensalt()
+        );
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "UPDATE users SET password_hash = ? WHERE id = ? AND role = 'STUDENT'"
+                );
+            stmt.setString(1, hashed);
+            stmt.setInt(2, userId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Reset student password failed: " + e.getMessage());
+            return false;
+        }
+    }
+
     public boolean usernameExists(String username) {
         if (username == null || username.isBlank()) return false;
         try {
@@ -119,9 +187,44 @@ public class UserAdminService {
     private String normalizeRole(String role) {
         if (role == null) return null;
         String normalized = role.trim().toUpperCase();
-        return ("ADMIN".equals(normalized) || "LIBRARIAN".equals(normalized))
+        return ("ADMIN".equals(normalized) || "LIBRARIAN".equals(normalized) || "STUDENT".equals(normalized))
             ? normalized
             : null;
+    }
+
+    private boolean createUser(String username, String rawPassword, String role, Integer branchId) {
+        if (username == null || username.isBlank() || rawPassword == null || rawPassword.isBlank()) {
+            return false;
+        }
+
+        String normalizedRole = normalizeRole(role);
+        if (normalizedRole == null) {
+            return false;
+        }
+
+        String hashed = org.mindrot.jbcrypt.BCrypt.hashpw(
+            rawPassword,
+            org.mindrot.jbcrypt.BCrypt.gensalt()
+        );
+
+        try {
+            PreparedStatement stmt = DatabaseConnection.getConnection()
+                .prepareStatement(
+                    "INSERT INTO users (username, password_hash, role, branch_id) VALUES (?, ?, ?, ?)"
+                );
+            stmt.setString(1, username.trim());
+            stmt.setString(2, hashed);
+            stmt.setString(3, normalizedRole);
+            if (branchId == null) {
+                stmt.setNull(4, java.sql.Types.INTEGER);
+            } else {
+                stmt.setInt(4, branchId);
+            }
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Create user failed: " + e.getMessage());
+            return false;
+        }
     }
 
     public boolean reassignLibrarian(int userId, int branchId) {

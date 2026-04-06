@@ -4,6 +4,7 @@ com/library/controller/SuperAdminDashboardController$3.class
 com/library/controller/SystemManagementController$AuditLog.class
 com/library/model/BookCopy.class
 com/library/model/BookCopyDetail.class
+com/library/controller/StudentDashboardController.class
 com/library/model/DashboardStats.class
 com/library/controller/SuperAdminDashboardController.class
 com/library/model/BranchSummary.class
@@ -41,6 +42,7 @@ com/library/controller/IssueReturnDataController$IssueReturnRecord.class
 com/library/controller/BranchManagementController$BranchRecord.class
 com/library/util/SessionManager.class
 com/library/controller/BookController$3.class
+com/library/controller/BookController$6.class
 com/library/controller/SuperAdminDashboardController$1.class
 com/library/model/Book.class
 com/library/controller/BranchAnalyticsController.class
@@ -61,6 +63,7 @@ com/library/controller/SuperAdminDashboardController$2.class
 com/library/controller/BranchManagementController.class
 com/library/controller/NotificationsController$Notification.class
 com/library/service/UserAdminService.class
+com/library/controller/BookController$CopyEntry.class
 com/library/controller/UserOversightController$AdminFormResult.class
 com/library/controller/UserOversightController$AdminRecord.class
 com/library/controller/SystemManagementController.class
