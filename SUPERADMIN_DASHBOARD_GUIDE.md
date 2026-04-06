@@ -4,6 +4,29 @@
 
 The SuperAdmin Dashboard is a comprehensive management system for library administrators with access to all branches. It provides read-only data views and system management capabilities without the ability to issue or return books directly.
 
+## Java & Maven Compatibility
+
+- Use **JDK 21** for development/runtime.
+- Compile with Maven using **`maven.compiler.release=17`** for stable LTS compatibility.
+- Do not use deprecated dual compiler flags (`source` + `target`) when `release` is set.
+
+Recommended `pom.xml` compiler setup:
+
+```xml
+<properties>
+  <maven.compiler.release>17</maven.compiler.release>
+</properties>
+
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>3.13.0</version>
+  <configuration>
+    <release>${maven.compiler.release}</release>
+  </configuration>
+</plugin>
+```
+
 ## Features
 
 ### 1. **Issue/Return Data View**
@@ -269,5 +292,14 @@ For issues or feature requests related to SuperAdmin Dashboard, ensure:
 1. Database connectivity is working
 2. SUPERADMIN account exists in system
 3. All required FXML and controller files are in place
-4. Java version 21+ installed
-5. JavaFX 21+ properly configured in Maven
+4. JDK 21 is installed and used by VS Code + Maven
+5. Maven compiler is configured with `maven.compiler.release` (recommended: 17)
+6. JavaFX 21+ is properly configured in Maven
+
+Useful validation commands:
+
+```bash
+java -version
+mvn -version
+mvn -q -DskipTests clean compile
+```

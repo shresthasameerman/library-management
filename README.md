@@ -1,6 +1,7 @@
 # Library Management System (JavaFX + SQLite)
 
-A simple **Library Management** desktop application built with **Java 21**, **JavaFX**, and **SQLite**, using **Maven** for builds.  
+A simple **Library Management** desktop application built with **JavaFX** and **SQLite**, using **Maven** for builds.  
+Development/runtime JDK is **21**, while compilation target compatibility is **Java 17** via Maven `maven.compiler.release`.  
 The app uses a layered structure (`controller`, `service`, `model`, `database`, `util`) and includes **BCrypt** for password hashing.
 
 This version includes copy-level accession tracking, improved issue/return workflows, richer book detail views, branch-scoped data behavior, and enhanced superadmin controls.
@@ -9,7 +10,8 @@ This version includes copy-level accession tracking, improved issue/return workf
 
 ## Tech Stack
 
-- **Java**: 21
+- **Java (runtime/dev JDK)**: 21
+- **Java bytecode target**: 17 (`maven.compiler.release`)
 - **UI**: JavaFX (Controls + FXML)
 - **Database**: SQLite (via `sqlite-jdbc`)
 - **Security**: BCrypt (`jbcrypt`) for password hashing
@@ -123,8 +125,27 @@ Key packages:
 
 ## Requirements
 
-- Java **21** installed
+- JDK **21** installed (used by VS Code + Maven runtime)
 - Maven installed (or use Maven wrapper if you add one later)
+
+Build compatibility is configured in `pom.xml` with:
+
+```xml
+<maven.compiler.release>17</maven.compiler.release>
+```
+
+and:
+
+```xml
+<plugin>
+	<groupId>org.apache.maven.plugins</groupId>
+	<artifactId>maven-compiler-plugin</artifactId>
+	<version>3.13.0</version>
+	<configuration>
+		<release>${maven.compiler.release}</release>
+	</configuration>
+</plugin>
+```
 
 ---
 
@@ -146,6 +167,15 @@ Run:
 mvn javafx:run
 ```
 
+### 3) Verify Java + Maven environment
+
+```bash
+java -version
+mvn -version
+```
+
+You should see Maven running on JDK 21.
+
 ---
 
 ## Build
@@ -156,6 +186,25 @@ This project uses the **Maven Shade Plugin** to create a fat JAR during `package
 ```bash
 mvn clean package
 ```
+
+### Clean rebuild from scratch
+
+```bash
+mvn -q clean
+mvn -q -DskipTests clean compile
+```
+
+### Force refresh after pom/config changes (VS Code + Maven)
+
+```bash
+mvn -q -U dependency:resolve
+```
+
+Then in VS Code Command Palette:
+
+1. `Java: Clean Java Language Server Workspace` (restart when prompted)
+2. `Maven: Reload Projects`
+3. `Developer: Reload Window`
 
 After build, check `target/` for the generated JAR.
 
