@@ -6,15 +6,15 @@ The SuperAdmin Dashboard is a comprehensive management system for library admini
 
 ## Java & Maven Compatibility
 
-- Use **JDK 21** for development/runtime.
-- Compile with Maven using **`maven.compiler.release=17`** for stable LTS compatibility.
+- Use **JDK 25** for development/runtime.
+- Compile with Maven using **`maven.compiler.release=25`** for stable LTS compatibility.
 - Do not use deprecated dual compiler flags (`source` + `target`) when `release` is set.
 
 Recommended `pom.xml` compiler setup:
 
 ```xml
 <properties>
-  <maven.compiler.release>17</maven.compiler.release>
+  <maven.compiler.release>25</maven.compiler.release>
 </properties>
 
 <plugin>
@@ -292,8 +292,8 @@ For issues or feature requests related to SuperAdmin Dashboard, ensure:
 1. Database connectivity is working
 2. SUPERADMIN account exists in system
 3. All required FXML and controller files are in place
-4. JDK 21 is installed and used by VS Code + Maven
-5. Maven compiler is configured with `maven.compiler.release` (recommended: 17)
+4. JDK 25 is installed and used by VS Code + Maven
+5. Maven compiler is configured with `maven.compiler.release` (recommended: 25)
 6. JavaFX 21+ is properly configured in Maven
 
 Useful validation commands:

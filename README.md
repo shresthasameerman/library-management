@@ -1,7 +1,7 @@
 # Library Management System (JavaFX + SQLite)
 
 A simple **Library Management** desktop application built with **JavaFX** and **SQLite**, using **Maven** for builds.  
-Development/runtime JDK is **21**, while compilation target compatibility is **Java 17** via Maven `maven.compiler.release`.  
+Development/runtime JDK is **25**, while compilation target compatibility is **Java 25** via Maven `maven.compiler.release`.  
 The app uses a layered structure (`controller`, `service`, `model`, `database`, `util`) and includes **BCrypt** for password hashing.
 
 This version includes copy-level accession tracking, improved issue/return workflows, richer book detail views, branch-scoped data behavior, and enhanced superadmin controls.
@@ -10,8 +10,8 @@ This version includes copy-level accession tracking, improved issue/return workf
 
 ## Tech Stack
 
-- **Java (runtime/dev JDK)**: 21
-- **Java bytecode target**: 17 (`maven.compiler.release`)
+- **Java (runtime/dev JDK)**: 25
+- **Java bytecode target**: 25 (`maven.compiler.release`)
 - **UI**: JavaFX (Controls + FXML)
 - **Database**: SQLite (via `sqlite-jdbc`)
 - **Security**: BCrypt (`jbcrypt`) for password hashing
@@ -125,13 +125,13 @@ Key packages:
 
 ## Requirements
 
-- JDK **21** installed (used by VS Code + Maven runtime)
+- JDK **25** installed (used by VS Code + Maven runtime)
 - Maven installed (or use Maven wrapper if you add one later)
 
 Build compatibility is configured in `pom.xml` with:
 
 ```xml
-<maven.compiler.release>17</maven.compiler.release>
+<maven.compiler.release>25</maven.compiler.release>
 ```
 
 and:
@@ -174,7 +174,7 @@ java -version
 mvn -version
 ```
 
-You should see Maven running on JDK 21.
+You should see Maven running on JDK 25.
 
 ---
 

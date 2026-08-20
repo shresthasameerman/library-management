@@ -202,8 +202,8 @@ Comprehensive guide including:
 
 ### Java/Maven Baseline
 
-- Runtime JDK: **21**
-- Maven compile compatibility target: **17** (`maven.compiler.release`)
+- Runtime JDK: **25**
+- Maven compile compatibility target: **25** (`maven.compiler.release`)
 - Compiler plugin baseline: `maven-compiler-plugin 3.13.0` using `<release>`
 
 ### Directory Structure
@@ -260,8 +260,8 @@ src/
   - UserService.getActivityLogs()
 - [ ] Implement ExportService calls in respective controllers
 - [ ] Create optional database tables (activity_logs, system_audit, notifications)
-- [ ] Ensure `pom.xml` uses `maven.compiler.release` (recommended value: 17)
-- [ ] Ensure VS Code Java runtime points to JDK 21 in `.vscode/settings.json`
+- [ ] Ensure `pom.xml` uses `maven.compiler.release` (recommended value: 25)
+- [ ] Ensure VS Code Java runtime points to JDK 25 in `.vscode/settings.json`
 - [ ] Test all functionality with sample data
 - [ ] Configure Maven pom.xml if using additional charting libraries
 - [ ] Update README.md with SuperAdmin access instructions
