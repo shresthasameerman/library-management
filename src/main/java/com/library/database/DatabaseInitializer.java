@@ -57,6 +57,7 @@ public class DatabaseInitializer {
                     place_of_publication  TEXT,
                     year_of_publication   INTEGER DEFAULT 0,
                     number_of_pages       INTEGER DEFAULT 0,
+                    price                 REAL DEFAULT 0,
                     added_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY(branch_id) REFERENCES branches(id)
                 )
@@ -167,7 +168,8 @@ public class DatabaseInitializer {
                 "ALTER TABLE books ADD COLUMN publisher TEXT",
                 "ALTER TABLE books ADD COLUMN place_of_publication TEXT",
                 "ALTER TABLE books ADD COLUMN year_of_publication INTEGER DEFAULT 0",
-                "ALTER TABLE books ADD COLUMN number_of_pages INTEGER DEFAULT 0"
+                "ALTER TABLE books ADD COLUMN number_of_pages INTEGER DEFAULT 0",
+                "ALTER TABLE books ADD COLUMN price REAL DEFAULT 0"
             };
 
             for (String sql : bookColumns) {

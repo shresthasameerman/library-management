@@ -21,13 +21,14 @@ public class Book {
     private final StringProperty  placeOfPublication;
     private final IntegerProperty yearOfPublication;
     private final IntegerProperty numberOfPages;
+    private final DoubleProperty  price;
 
     public Book(int id, String title, String author, String isbn,
                 String category, int totalCopies, int availableCopies,
                 String accessionNumber, String classificationNumber,
                 String cutterNumber, String edition, String publisher,
                 String placeOfPublication, int yearOfPublication,
-                int numberOfPages) {
+                int numberOfPages, double price) {
         this.id                   = new SimpleIntegerProperty(id);
         this.title                = new SimpleStringProperty(title);
         this.author               = new SimpleStringProperty(author);
@@ -43,6 +44,7 @@ public class Book {
         this.placeOfPublication   = new SimpleStringProperty(placeOfPublication);
         this.yearOfPublication    = new SimpleIntegerProperty(yearOfPublication);
         this.numberOfPages        = new SimpleIntegerProperty(numberOfPages);
+        this.price                = new SimpleDoubleProperty(price);
     }
 
     // ── Convenience constructor (minimal — for backward compat) ───────
@@ -50,7 +52,21 @@ public class Book {
                 String category, int totalCopies, int availableCopies) {
         this(id, title, author, isbn, category,
              totalCopies, availableCopies,
-             "", "", "", "", "", "", 0, 0);
+             "", "", "", "", "", "", 0, 0, 0.0);
+    }
+
+    public Book(int id, String title, String author, String isbn,
+                String category, int totalCopies, int availableCopies,
+                String accessionNumber, String classificationNumber,
+                String cutterNumber, String edition, String publisher,
+                String placeOfPublication, int yearOfPublication,
+                int numberOfPages) {
+        this(id, title, author, isbn, category,
+             totalCopies, availableCopies,
+             accessionNumber, classificationNumber,
+             cutterNumber, edition, publisher,
+             placeOfPublication, yearOfPublication,
+             numberOfPages, 0.0);
     }
 
     // ── Getters / Setters ─────────────────────────────────────────────
@@ -112,6 +128,10 @@ public class Book {
     public int getNumberOfPages()                   { return numberOfPages.get(); }
     public void setNumberOfPages(int v)             { numberOfPages.set(v); }
     public IntegerProperty numberOfPagesProperty()  { return numberOfPages; }
+
+    public double getPrice()                   { return price.get(); }
+    public void setPrice(double v)             { price.set(v); }
+    public DoubleProperty priceProperty()      { return price; }
 
     // Returns accession display range, e.g. "100 -> 109".
     public String getAccessionRange() {
