@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.Insets?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.library.controller.OnboardingWizardController"
+      spacing="20" alignment="CENTER"
+      style="-fx-background-color: white; -fx-padding: 40;"
+      prefWidth="600" prefHeight="500">
+
+    <Label text="Welcome to Library Management System!"
+           style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #1a1a2e;"/>
+    <Label text="Let's get your library set up in 3 easy steps."
+           style="-fx-font-size: 14px; -fx-text-fill: #6c757d;"/>
+
+    <StackPane fx:id="stepContainer" VBox.vgrow="ALWAYS">
+        <!-- Step 1: Library Details -->
+        <VBox fx:id="step1" spacing="15" alignment="CENTER" visible="true">
+            <Label text="Step 1: Library Details" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+            <TextField fx:id="libraryNameField" promptText="Enter Library Name (e.g. Main Library)"
+                       maxWidth="300" prefHeight="40" styleClass="text-field"/>
+            <TextField fx:id="libraryCodeField" promptText="Enter Library Code (e.g. MAIN)"
+                       maxWidth="300" prefHeight="40" styleClass="text-field"/>
+        </VBox>
+
+        <!-- Step 2: Add First Book -->
+        <VBox fx:id="step2" spacing="15" alignment="CENTER" visible="false">
+            <Label text="Step 2: Add Your First Book" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+            <TextField fx:id="bookTitleField" promptText="Book Title"
+                       maxWidth="300" prefHeight="40" styleClass="text-field"/>
+            <TextField fx:id="bookAuthorField" promptText="Author"
+                       maxWidth="300" prefHeight="40" styleClass="text-field"/>
+            <TextField fx:id="bookIsbnField" promptText="ISBN"
+                       maxWidth="300" prefHeight="40" styleClass="text-field"/>
+        </VBox>
+
+        <!-- Step 3: Create Admin Account -->
+        <VBox fx:id="step3" spacing="15" alignment="CENTER" visible="false">
+            <Label text="Step 3: Create Admin Account" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+            <TextField fx:id="adminUserField" promptText="Admin Username"
+                       maxWidth="300" prefHeight="40" styleClass="text-field"/>
+            <PasswordField fx:id="adminPassField" promptText="Admin Password"
+                           maxWidth="300" prefHeight="40" styleClass="text-field"/>
+        </VBox>
+    </StackPane>
+
+    <HBox spacing="10" alignment="CENTER">
+        <Button fx:id="btnBack" text="Back" onAction="#handleBack" disable="true"
+                prefWidth="100" prefHeight="40" style="-fx-background-color: #eef1fb; -fx-text-fill: #1a1a2e;"/>
+        <Button fx:id="btnNext" text="Next" onAction="#handleNext"
+                prefWidth="100" prefHeight="40" style="-fx-background-color: #4361ee; -fx-text-fill: white; -fx-font-weight: bold;"/>
+    </HBox>
+
+    <Label fx:id="statusLabel" text="" style="-fx-text-fill: #e63946; -fx-font-size: 12px;"/>
+</VBox>

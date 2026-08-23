@@ -18,11 +18,19 @@ public class App extends Application {
         return START_TIME_MILLIS;
     }
 
+    private com.library.service.BackupService backupService;
+
     @Override
     public void start(Stage stage) throws Exception {
+        // Set modern AtlantaFX theme
+        Application.setUserAgentStylesheet(new atlantafx.base.theme.PrimerLight().getUserAgentStylesheet());
 
         // Initialize app directories FIRST (before anything else)
         initializeAppDirectories();
+
+        // Start auto backup scheduler
+        backupService = new com.library.service.BackupService();
+        backupService.startAutoBackupScheduler();
 
         // Initialize DB on every launch (safe — uses CREATE IF NOT EXISTS)
         DatabaseInitializer.initialize();
@@ -40,6 +48,14 @@ public class App extends Application {
         stage.setScene(scene);
         stage.setResizable(false);
         stage.show();
+    }
+
+    @Override
+    public void stop() throws Exception {
+        if (backupService != null) {
+            backupService.stopAutoBackupScheduler();
+        }
+        super.stop();
     }
 
     private static void initializeAppDirectories() {

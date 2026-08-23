@@ -675,6 +675,28 @@ public class DashboardController implements Initializable {
         dialog.showAndWait();
     }
 
+    @FXML
+    private void handleOnboardingWizard() {
+        try {
+            FXMLLoader loader = new FXMLLoader(
+                getClass().getResource("/com/library/fxml/OnboardingWizard.fxml"));
+            Scene scene = new Scene(loader.load(), 600, 500);
+            Stage dialog = new Stage();
+            dialog.initOwner(mainPane.getScene().getWindow());
+            dialog.initModality(Modality.APPLICATION_MODAL);
+            dialog.setTitle("Quick Start Wizard");
+            dialog.setScene(scene);
+            dialog.showAndWait();
+            
+            // Reload stats after wizard finishes
+            loadStats();
+            loadCharts();
+        } catch (Exception e) {
+            System.err.println("Failed to load Onboarding Wizard: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
     // ── Reports ───────────────────────────────────────────────────────
 
     @FXML private void downloadIssuedReport() {

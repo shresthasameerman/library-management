@@ -439,6 +439,17 @@
                                                -fx-cursor: hand;"
                                         onAction="#handleManageLibrarians"/>
                             </HBox>
+                            <Button fx:id="btnOnboarding"
+                                    text="🚀  Quick Start Wizard"
+                                    prefHeight="44"
+                                    maxWidth="Infinity"
+                                    style="-fx-background-color: #2dc653;
+                                           -fx-text-fill: white;
+                                           -fx-font-weight: bold;
+                                           -fx-font-size: 13px;
+                                           -fx-background-radius: 8;
+                                           -fx-cursor: hand;"
+                                    onAction="#handleOnboardingWizard"/>
                             <Button fx:id="btnSystemSummary"
                                     text="🌐  System-Wide Branch Summary"
                                     prefHeight="42"
