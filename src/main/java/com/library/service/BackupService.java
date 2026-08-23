@@ -107,6 +107,16 @@ public class BackupService {
         try {
             Files.copy(sourcePath, destPath, StandardCopyOption.REPLACE_EXISTING);
             System.out.println("✅ Backup successful: " + destPath.toString());
+            
+            // Update backup.meta for the UI
+            try {
+                String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                Path metaPath = Paths.get(APP_DIR, "backup.meta");
+                Files.writeString(metaPath, stamp + " | " + destPath.toString());
+            } catch (IOException e) {
+                System.err.println("Could not update backup.meta: " + e.getMessage());
+            }
+            
             return destPath.toString();
         } catch (IOException e) {
             System.err.println("❌ Backup failed: " + e.getMessage());
