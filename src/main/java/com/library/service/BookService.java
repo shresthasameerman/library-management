@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BookService {
+    private final LicenseService licenseService = new LicenseService();
 
     // ── Add Book ──────────────────────────────────────────────────────
     public boolean addBook(Book book) {
@@ -24,6 +25,13 @@ public class BookService {
         """;
         try {
             Connection conn = DatabaseConnection.getConnection();
+            try (PreparedStatement count = conn.prepareStatement("SELECT COUNT(*) FROM books")) {
+                ResultSet result = count.executeQuery();
+                if (result.next() && !licenseService.canAddBook(result.getInt(1))) {
+                    System.err.println("Book limit reached or no active license.");
+                    return false;
+                }
+            }
             String scopedSql = sql.replace(") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 ", branch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             PreparedStatement stmt = conn.prepareStatement(scopedSql);

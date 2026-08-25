@@ -68,6 +68,42 @@
     -fx-text-fill: #a0aec0;
 }
 
+.onboarding-background {
+    -fx-background-color: linear-gradient(to bottom right, #eef1fb, #e8f4f1);
+}
+
+.welcome-panel {
+    -fx-background-color: #1a1a2e;
+    -fx-background-radius: 10;
+    -fx-padding: 24;
+}
+
+.tab-panel {
+    -fx-background-color: white;
+    -fx-padding: 22;
+}
+
+.panel-title {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1a1a2e;
+}
+
+.welcome-panel .panel-title { -fx-text-fill: white; }
+
+.panel-copy {
+    -fx-font-size: 12px;
+    -fx-text-fill: #8290aa;
+}
+
+.welcome-panel .panel-copy { -fx-text-fill: #c1c9dc; }
+
+.tier-title {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #7de2c2;
+}
+
 .input-label {
     -fx-font-size: 13px;
     -fx-font-weight: bold;

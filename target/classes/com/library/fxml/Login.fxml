@@ -1,76 +1,68 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
-<?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
-<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.*?>
 
-<StackPane
-    xmlns="http://javafx.com/javafx/21"
-    xmlns:fx="http://javafx.com/fxml/1"
-    fx:controller="com.library.controller.LoginController"
-    prefWidth="900" prefHeight="600"
-    style="-fx-background-color: #f0f2f5;">
-
-    <!-- Centered Login Card -->
-    <VBox
-        styleClass="login-container"
-        spacing="16"
-        maxWidth="400"
-        maxHeight="460"
-        alignment="CENTER">
-
-        <!-- Logo / Title -->
+<StackPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="com.library.controller.LoginController" prefWidth="1040" prefHeight="700"
+           styleClass="onboarding-background">
+    <VBox styleClass="login-container" maxWidth="820" maxHeight="620" spacing="18">
         <VBox alignment="CENTER" spacing="4">
-            <Label text="📚 LibraryMS" styleClass="login-title"/>
-            <Label text="Library Management System" styleClass="login-subtitle"/>
+            <Label text="LibraryMS" styleClass="login-title" />
+            <Label text="A focused home for your library team" styleClass="login-subtitle" />
         </VBox>
-
-        <!-- Spacer -->
-        <Region prefHeight="10"/>
-
-        <!-- Username -->
-        <VBox spacing="6">
-            <Label text="Username" styleClass="input-label"/>
-            <TextField
-                fx:id="usernameField"
-                promptText="Enter your username"
-                styleClass="text-input"
-                prefWidth="280"/>
-        </VBox>
-
-        <!-- Password -->
-        <VBox spacing="6">
-            <Label text="Password" styleClass="input-label"/>
-            <PasswordField
-                fx:id="passwordField"
-                promptText="Enter your password"
-                styleClass="text-input"
-                prefWidth="280"/>
-        </VBox>
-
-        <!-- Error Message -->
-        <Label
-            fx:id="errorLabel"
-            text=""
-            styleClass="error-label"
-            wrapText="true"/>
-
-        <!-- Spacer -->
-        <Region prefHeight="6"/>
-
-        <!-- Login Button -->
-        <Button
-            fx:id="loginButton"
-            text="Login"
-            styleClass="btn-primary"
-            prefWidth="280"
-            onAction="#handleLogin"/>
-
-        <!-- Hint -->
-        <Label
-            text="Default: admin / admin123"
-            styleClass="login-subtitle"
-            style="-fx-font-size: 11px;"/>
-
+        <HBox spacing="18" alignment="TOP_CENTER">
+            <VBox prefWidth="260" spacing="12" styleClass="welcome-panel">
+                <Label text="Choose the right home for your library" styleClass="panel-title" wrapText="true" />
+                <Label text="Every installation is secured with a signed license and bound to this computer." styleClass="panel-copy" wrapText="true" />
+                <VBox spacing="8">
+                    <Label text="BASIC   NPR 12,000 / year" styleClass="tier-title" />
+                    <Label text="1 computer | Up to 5,000 books | Basic reporting" styleClass="panel-copy" wrapText="true" />
+                    <Label text="PRO   NPR 30,000 / year" styleClass="tier-title" />
+                    <Label text="Networked computers | Unlimited books | Backups + barcode support" styleClass="panel-copy" wrapText="true" />
+                    <Label text="ENTERPRISE   Custom pricing" styleClass="tier-title" />
+                    <Label text="PostgreSQL | Premium support | Tailored deployment" styleClass="panel-copy" wrapText="true" />
+                </VBox>
+            </VBox>
+            <VBox prefWidth="450" spacing="10">
+                <TabPane fx:id="accountTabs" tabClosingPolicy="UNAVAILABLE">
+                    <Tab text="Activate license">
+                        <VBox spacing="12" styleClass="tab-panel">
+                            <Label text="Start your library workspace" styleClass="panel-title" />
+                            <Label text="Paste the signed license key supplied after purchase. It is checked locally and never sent to a server." styleClass="panel-copy" wrapText="true" />
+                            <Label text="License key" styleClass="input-label" />
+                            <TextField fx:id="licenseKeyField" promptText="Paste your license key" styleClass="text-input" />
+                            <Button text="Activate on this computer" styleClass="btn-primary" onAction="#handleActivate" />
+                            <Label fx:id="activationErrorLabel" text="" styleClass="error-label" wrapText="true" />
+                            <Label fx:id="activationStatusLabel" text="Activation required before sign in" styleClass="panel-copy" wrapText="true" />
+                        </VBox>
+                    </Tab>
+                    <Tab text="Create admin">
+                        <VBox spacing="9" styleClass="tab-panel">
+                            <Label text="Set up your administrator account" styleClass="panel-title" />
+                            <Label text="This replaces the old shared default login. Keep these credentials private." styleClass="panel-copy" wrapText="true" />
+                            <Label text="Username" styleClass="input-label" />
+                            <TextField fx:id="setupUsernameField" promptText="Choose a username" styleClass="text-input" />
+                            <Label text="Password" styleClass="input-label" />
+                            <PasswordField fx:id="setupPasswordField" promptText="At least 8 characters" styleClass="text-input" />
+                            <PasswordField fx:id="setupConfirmPasswordField" promptText="Confirm password" styleClass="text-input" />
+                            <Label fx:id="setupErrorLabel" text="" styleClass="error-label" wrapText="true" />
+                            <Button text="Create administrator" styleClass="btn-primary" onAction="#handleCreateAccount" />
+                        </VBox>
+                    </Tab>
+                    <Tab text="Sign in">
+                        <VBox spacing="10" styleClass="tab-panel">
+                            <Label text="Welcome back" styleClass="panel-title" />
+                            <Label text="Sign in to manage your library." styleClass="panel-copy" />
+                            <Label text="Username" styleClass="input-label" />
+                            <TextField fx:id="usernameField" promptText="Enter your username" styleClass="text-input" />
+                            <Label text="Password" styleClass="input-label" />
+                            <PasswordField fx:id="passwordField" promptText="Enter your password" styleClass="text-input" />
+                            <Label fx:id="errorLabel" text="" styleClass="error-label" wrapText="true" />
+                            <Button text="Sign in" styleClass="btn-primary" onAction="#handleLogin" />
+                        </VBox>
+                    </Tab>
+                </TabPane>
+            </VBox>
+        </HBox>
     </VBox>
 </StackPane>

@@ -22,6 +22,7 @@
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/BranchSummary.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/DashboardStats.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/IssueRecord.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/LicenseTier.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/Member.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/ReportRecord.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/model/User.java
@@ -30,6 +31,7 @@
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/BranchService.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/DashboardService.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/IssueService.java
+/home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/LicenseService.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/MemberService.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/ReportService.java
 /home/sameer/Documents/library_management_software/library-management/src/main/java/com/library/service/UserAdminService.java

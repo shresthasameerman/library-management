@@ -7,6 +7,7 @@ com/library/model/BookCopyDetail.class
 com/library/controller/StudentDashboardController.class
 com/library/model/DashboardStats.class
 com/library/controller/SuperAdminDashboardController.class
+com/library/service/LicenseService.class
 com/library/model/BranchSummary.class
 com/library/model/Branch.class
 com/library/controller/SuperAdminDashboardController$IssueRow.class
@@ -38,6 +39,7 @@ com/library/controller/ReportsController.class
 com/library/controller/UserOversightController.class
 com/library/controller/UserOversightController$PasswordResetFormResult.class
 com/library/model/IssueRecord.class
+com/library/model/LicenseTier.class
 com/library/controller/IssueReturnDataController$IssueReturnRecord.class
 com/library/controller/BranchManagementController$BranchRecord.class
 com/library/util/SessionManager.class
@@ -53,6 +55,7 @@ com/library/service/BookService.class
 com/library/controller/MemberController.class
 com/library/controller/BookController$4.class
 com/library/controller/IssueReturnDataController.class
+com/library/service/LicenseService$LicenseInfo.class
 com/library/util/QRCodeUtil.class
 com/library/controller/IssueController$4.class
 com/library/controller/UserOversightController$ActivityLog.class

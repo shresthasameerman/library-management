@@ -31,7 +31,7 @@ public class App extends Application {
         FXMLLoader loader = new FXMLLoader(
             getClass().getResource("/com/library/fxml/Login.fxml")
         );
-        Scene scene = new Scene(loader.load(), 900, 600);
+        Scene scene = new Scene(loader.load(), 1040, 700);
         scene.getStylesheets().add(
             getClass().getResource("/com/library/css/style.css").toExternalForm()
         );

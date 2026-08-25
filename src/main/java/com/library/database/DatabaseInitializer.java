@@ -117,6 +117,14 @@ public class DatabaseInitializer {
                 )
             """);
 
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS app_license (
+                    id INTEGER PRIMARY KEY CHECK(id = 1), license_key TEXT NOT NULL,
+                    tier TEXT NOT NULL, machine_id TEXT NOT NULL, expires_at INTEGER NOT NULL,
+                    activated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """);
+
             migrateUsersRoleCheckIfNeeded(conn);
 
             // ── Safe migrations (existing DB) ─────────────────────────
@@ -323,6 +331,9 @@ public class DatabaseInitializer {
 
     private static void seedDefaultUsers(Connection conn, int defaultBranchId)
             throws SQLException {
+        try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users")) {
+            if (rs.next() && rs.getInt(1) == 0) return;
+        }
         String superHash = org.mindrot.jbcrypt.BCrypt.hashpw(
             "superadmin123",
             org.mindrot.jbcrypt.BCrypt.gensalt()
