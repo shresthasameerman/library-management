@@ -1,17 +1,14 @@
-# Library Management System (JavaFX + SQLite)
+# Library Management System
 
-A simple **Library Management** desktop application built with **JavaFX** and **SQLite**, using **Maven** for builds.  
-Development/runtime JDK is **25**, while compilation target compatibility is **Java 25** via Maven `maven.compiler.release`.  
-The app uses a layered structure (`controller`, `service`, `model`, `database`, `util`) and includes **BCrypt** for password hashing.
+A desktop library management application built with JavaFX, SQLite, and Maven. The application provides role-based access, branch-scoped data, copy-level book tracking, issue and return workflows, reports, QR codes, licensing, and scheduled database backups.
 
-This version includes copy-level accession tracking, improved issue/return workflows, richer book detail views, branch-scoped data behavior, and enhanced superadmin controls.
+The project currently targets Java 21 and uses JavaFX 21.
 
 ---
-
 ## Tech Stack
 
-- **Java (runtime/dev JDK)**: 25
-- **Java bytecode target**: 25 (`maven.compiler.release`)
+- **Java (runtime/dev JDK)**: 21 or newer
+- **Java bytecode target**: 21 (`maven.compiler.release`)
 - **UI**: JavaFX (Controls + FXML)
 - **Database**: SQLite (via `sqlite-jdbc`)
 - **Security**: BCrypt (`jbcrypt`) for password hashing
@@ -36,18 +33,27 @@ Key packages:
 
 ---
 
-## Current Features
+## Features
 
 ### Authentication
 
-- Login with role-based users (e.g., Admin, Librarian)
+- Login with role-based users: Super Admin, Admin, Librarian, and Student
 - Password hashing with BCrypt
+- License validation during application use
+
+### Onboarding and Branches
+
+- Guided onboarding wizard for initial setup
+- Branch management and branch-specific user accounts
+- Branch users see and manage only their own branch data
+- Super Admin oversight of branches, users, and branch analytics
 
 ### Superadmin Controls
 
-- Add branch admins/librarians from Superadmin User Management
-- Reset branch account passwords from Superadmin User Management
-- Audit logging support for account create/reset actions (when `audit_logs` table exists)
+- Add branches and branch admins/librarians
+- Reset branch account passwords
+- Review branch analytics and user activity
+- Audit logging support for account creation and password reset actions when the audit table exists
 
 ### Books
 
@@ -87,14 +93,20 @@ Key packages:
 
 ### Dashboard & Reports
 
-- Stats cards and charts (category, monthly issue/return, member distribution)
-- Monthly activity Y-axis uses whole numbers (`0, 1, 2, ...`)
-- CSV report generation:
+- Dashboard cards and charts for categories, monthly issue/return activity, and member distribution
+- Reports in CSV, Excel, and PDF formats, including:
 	- issued books
 	- overdue books
 	- inventory
 	- member list
 	- monthly summary
+
+### Licensing and Backups
+
+- License tiers with signed license-key validation
+- Machine-bound license activation and expiry checks
+- Automatic daily database backups
+- Manual backup support and cleanup of backups older than 30 days
 
 ### Branch-Scoped Data Behavior
 
@@ -106,45 +118,32 @@ Key packages:
 
 ## Recent Updates
 
-- Added `book_copies` table support and issue-record copy linkage (`book_copy_id`, `accession_number`)
-- Migrated issue flow to copy-level issue/return tracking
-- Improved Books UI and details popup
-- Added member disambiguation picker for duplicate names in issue flow
-- Updated Return tab behavior to show issued records by default
-- Switched intake list from hardcoded values to dynamic year-aware generation
-- Adjusted report behavior to avoid external file auto-open crashes on some Linux setups
-- Added working Superadmin actions for:
-	- Add New Admin (validated dialog + DB save)
-	- Add New Branch (validated dialog + DB save)
-	- Reset Password for selected branch admin/librarian
-- Improved member registration with branch-aware ID prefixing and better conflict/error feedback
-- Updated QR flow to generate per-accession QR codes (one QR = one physical copy)
-- Improved copy-sheet reliability by ensuring copy records are persisted/backfilled for branch views
+- Added multi-branch data support and branch-scoped queries
+- Added the onboarding wizard and branch management workflows
+- Added `book_copies` support and issue-record copy linkage (`book_copy_id`, `accession_number`)
+- Migrated issue and return operations to physical-copy tracking
+- Added book details and copy availability views
+- Added per-accession QR generation for physical book copies
+- Added duplicate-member selection during issue workflows
+- Added dynamic intake options and branch-aware member ID prefixes
+- Added Super Admin branch, account, password reset, analytics, and oversight workflows
+- Added signed license tiers and license-aware feature limits
+- Added automatic and manual SQLite backups
+- Added Java 21 compatibility and fixed startup database connection ownership
+- Removed obsolete dashboard and system-management resources from the active application
 
 ---
 
 ## Requirements
 
-- JDK **25** installed (used by VS Code + Maven runtime)
-- Maven installed (or use Maven wrapper if you add one later)
+- JDK 21 or newer
+- Maven 3.8 or newer
+- A graphical desktop session for JavaFX
 
 Build compatibility is configured in `pom.xml` with:
 
 ```xml
-<maven.compiler.release>25</maven.compiler.release>
-```
-
-and:
-
-```xml
-<plugin>
-	<groupId>org.apache.maven.plugins</groupId>
-	<artifactId>maven-compiler-plugin</artifactId>
-	<version>3.13.0</version>
-	<configuration>
-		<release>${maven.compiler.release}</release>
-	</configuration>
-</plugin>
+<maven.compiler.release>21</maven.compiler.release>
 ```
 
 ---
@@ -157,24 +156,22 @@ git clone https://github.com/shresthasameerman/library-management.git
 cd library-management
 ```
 
-### 2) Run with Maven (JavaFX plugin)
-Your `pom.xml` is configured to run the app using JavaFX Maven Plugin with:
-
-- Main class: `com.library.App`
-
-Run:
-```bash
-mvn javafx:run
-```
-
-### 3) Verify Java + Maven environment
+### 2) Check the Java environment
 
 ```bash
 java -version
 mvn -version
 ```
 
-You should see Maven running on JDK 25.
+Maven must report Java 21 or newer. If Maven reports an older JDK, set `JAVA_HOME` to the JDK installation before running the application.
+
+### 3) Run the application
+
+```bash
+mvn javafx:run
+```
+
+The JavaFX Maven plugin starts `com.library.App`. On first launch, the application creates its directories and initializes the SQLite database automatically.
 
 ---
 
@@ -190,35 +187,20 @@ mvn clean package
 ### Clean rebuild from scratch
 
 ```bash
-mvn -q clean
-mvn -q -DskipTests clean compile
+mvn clean test
 ```
-
-### Force refresh after pom/config changes (VS Code + Maven)
-
-```bash
-mvn -q -U dependency:resolve
-```
-
-Then in VS Code Command Palette:
-
-1. `Java: Clean Java Language Server Workspace` (restart when prompted)
-2. `Maven: Reload Projects`
-3. `Developer: Reload Window`
-
-After build, check `target/` for the generated JAR.
-
-> Note: the repository currently includes a `target/` directory. Usually, `target/` is not committed to Git and is added to `.gitignore`.
 
 ---
 
 ## Database (SQLite)
 
-This project includes SQLite support via:
-- `org.xerial:sqlite-jdbc`
+SQLite is provided by `org.xerial:sqlite-jdbc`. On Linux and macOS, the application stores its database under:
 
-The DB setup/connection logic is expected inside:
-- `src/main/java/com/library/database`
+```text
+~/LibraryApp/library.db
+```
+
+The application creates the database and required tables automatically. Database initialization includes safe migrations for existing databases.
 
 Core tables include:
 
@@ -227,6 +209,12 @@ Core tables include:
 - `book_copies` (physical copy per accession)
 - `members`
 - `issue_records`
+
+Automatic and manual backups are stored in:
+
+```text
+~/LibraryApp/backups/
+```
 
 If your app creates the DB file automatically, mention the file path here (edit this section as needed).
 
@@ -237,7 +225,7 @@ If your app creates the DB file automatically, mention the file path here (edit 
 This project includes BCrypt via:
 - `org.mindrot:jbcrypt`
 
-Use it to store hashed passwords rather than plain-text credentials.
+Passwords are stored as BCrypt hashes rather than plain text. Do not commit database files, license keys, or generated backups.
 
 ---
 
@@ -253,15 +241,12 @@ Contributions are welcome:
 
 ## Notes
 
-- JavaFX run command:
+- The normal development command is `mvn javafx:run`.
+- Use `mvn clean javafx:run` after changing dependencies or when a clean rebuild is needed.
+- The `target/` directory and generated application data are local runtime/build artifacts.
+- On Linux, reports are generated without requiring an external application to open automatically.
 
-```bash
-mvn clean javafx:run
-```
+Keep local database files, license keys, and generated backups out of version control.
 
-- Reports are saved under:
-	- `~/LibraryApp/Reports`
 
----
 
-TElCUkFSWU1TfEJBU0lDfDE4MTkxODIzODZ8ZWQxMjFmY2FhYTM2YzBkY2IwYjNlMjk1NzU2OWUyZWQ1MTJkMjIyZGY1YjUwMmUzMTJhODE0MDJjMTM2YjM2OA.HbERKInFLndJCzu8R2Yezn1CFKkMJYDgGoWr_D6KxuVf6MEzZMme_UTcZALaUaSEqXE8BAm9dD-4C2xiG8zX3IO2isUgbch_pyO1GEHpTOGg-mNKoDd_Jp71zCauOzf3Zcpp6qB8yKfSuDUyAf2bbZESfdLgaigjNI3Fr-CREmf7ZoTm3a2YYfymHCHhGgAR2UFzzFEPpyjv9tKhfiqNbR8k6vXLhYUqJMANCOi1-2RfEr4iULIaOROLl0Az9VG9U2TeYzdaREBr-2_9rOe0jVsySa7i2FQCqUrqtt6fSIFyFS6FvtdM1mhlN6L5Xc9vg1jxtXQDGIfam5fC6hF3Kg
