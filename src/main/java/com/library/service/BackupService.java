@@ -1,7 +1,5 @@
 package com.library.service;
 
-import com.library.database.DatabaseConnection;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -9,7 +7,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.Executors;
@@ -97,9 +97,10 @@ public class BackupService {
 
         // Before copying, ensure SQLite writes any pending data by obtaining a connection and creating a checkpoint if using WAL mode.
         // Even for standard rollback journal, it's good practice.
-        try (Connection conn = DatabaseConnection.getConnection()) {
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + DB_PATH);
+             Statement stmt = conn.createStatement()) {
             // A simple query to ensure the DB is not locked and is in a consistent state
-            conn.createStatement().execute("PRAGMA wal_checkpoint(FULL);");
+            stmt.execute("PRAGMA wal_checkpoint(FULL);");
         } catch (SQLException e) {
             System.err.println("Warning: Could not checkpoint DB before backup: " + e.getMessage());
         }

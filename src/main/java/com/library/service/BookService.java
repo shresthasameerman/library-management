@@ -25,7 +25,6 @@ public class BookService {
         """;
         try {
             Connection conn = DatabaseConnection.getConnection();
- appmod/java-upgrade-20260820064317
             try (PreparedStatement count = conn.prepareStatement("SELECT COUNT(*) FROM books")) {
                 ResultSet result = count.executeQuery();
                 if (result.next() && !licenseService.canAddBook(result.getInt(1))) {
@@ -33,12 +32,7 @@ public class BookService {
                     return false;
                 }
             }
-            String scopedSql = sql.replace(") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                ", branch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
-            PreparedStatement stmt = conn.prepareStatement(scopedSql);
-
             PreparedStatement stmt = conn.prepareStatement(sql);
- main
             stmt.setString(1, book.getTitle());
             stmt.setString(2, book.getAuthor());
             stmt.setString(3, book.getIsbn());
