@@ -24,6 +24,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 
 import java.net.URL;
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +32,8 @@ import java.util.Optional;
 import java.util.ResourceBundle;
 
 public class BookController implements Initializable {
+    private static final DecimalFormat PRICE_FORMAT = new DecimalFormat("0.00");
+
     @FXML private TableView<Book>           booksTable;
     @FXML private TableColumn<Book,Integer> colId;
     @FXML private TableColumn<Book,String>  colTitle;
@@ -212,8 +215,15 @@ public class BookController implements Initializable {
             "-fx-font-size: 12px; -fx-font-weight: bold;"
         );
 
+        Label priceChip = new Label("Price: " + formatPrice(book.getPrice()));
+        priceChip.setStyle(
+            "-fx-background-color: #fff7e6; -fx-text-fill: #8a4b00;" +
+            "-fx-padding: 6 10; -fx-background-radius: 8;" +
+            "-fx-font-size: 12px; -fx-font-weight: bold;"
+        );
+
         FlowPane infoRow = new FlowPane(10, 8,
-            authorChip, classChip, totalChip, availableChip
+            authorChip, classChip, totalChip, availableChip, priceChip
         );
         infoRow.setPrefWrapLength(700);
 
@@ -471,6 +481,7 @@ public class BookController implements Initializable {
         TextField placeField          = field("e.g. Cambridge, MA");
         TextField yearField           = field("e.g. " + LocalDate.now().getYear());
         TextField pagesField          = field("e.g. 1292");
+        TextField priceField          = field("e.g. 699.00");
         ComboBox<String> catBox       = new ComboBox<>();
         Label errorLabel              = new Label();
 
@@ -688,6 +699,8 @@ public class BookController implements Initializable {
                 yearField.setText(String.valueOf(existing.getYearOfPublication()));
             if (existing.getNumberOfPages() > 0)
                 pagesField.setText(String.valueOf(existing.getNumberOfPages()));
+            if (existing.getPrice() > 0)
+                priceField.setText(formatPrice(existing.getPrice()));
             catBox.setValue(existing.getCategory());
         }
 
@@ -712,7 +725,8 @@ public class BookController implements Initializable {
             lbl("Publisher",            lblStyle), publisherField,
             lbl("Place of Publication", lblStyle), placeField,
             lbl("Year of Publication",  lblStyle), yearField,
-            lbl("Number of Pages",      lblStyle), pagesField
+            lbl("Number of Pages",      lblStyle), pagesField,
+            lbl("Price",                lblStyle), priceField
         );
         rightCol.setPrefWidth(260);
 
@@ -775,6 +789,7 @@ public class BookController implements Initializable {
             String place     = placeField.getText().trim();
             String yearStr   = yearField.getText().trim();
             String pagesStr  = pagesField.getText().trim();
+            String priceStr  = priceField.getText().trim();
             String category  = catBox.getValue();
 
             // Collect NEW accession numbers (not already in DB)
@@ -832,6 +847,20 @@ public class BookController implements Initializable {
                 }
             }
 
+            double price = 0.0;
+            if (!priceStr.isEmpty()) {
+                try {
+                    price = Double.parseDouble(priceStr);
+                    if (price < 0) {
+                        errorLabel.setText("⚠ Price cannot be negative.");
+                        return;
+                    }
+                } catch (NumberFormatException ex) {
+                    errorLabel.setText("⚠ Price must be a valid number.");
+                    return;
+                }
+            }
+
             if (!isbn.isEmpty() && bookService.isbnExists(isbn,
                     isEdit ? existing.getId() : 0)) {
                 errorLabel.setText("⚠ This ISBN already exists.");
@@ -849,7 +878,7 @@ public class BookController implements Initializable {
                 accessionList.size(),
                 accessionList.size(),
                 mainAccession, classNo, cutter, edition,
-                publisher, place, year, pages
+                publisher, place, year, pages, price
             );
 
             boolean success = isEdit
@@ -937,6 +966,10 @@ public class BookController implements Initializable {
         if (value == null || value.isBlank()) return fallback;
         String cleaned = value.trim().replaceAll("\\s+", "").toUpperCase();
         return cleaned.isBlank() ? fallback : cleaned;
+    }
+
+    private String formatPrice(double price) {
+        return PRICE_FORMAT.format(price);
     }
 
     private static final class CopyEntry {

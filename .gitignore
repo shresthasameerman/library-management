@@ -1,1 +1,4 @@
 target/
+appmod/java-upgrade-20260820064317
+*.class
+main

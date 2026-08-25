@@ -248,22 +248,13 @@ public class SystemManagementController {
 
     @FXML
     private void backupDatabase() {
-        try {
-            Path backupDir = Path.of(BACKUP_DIR);
-            Files.createDirectories(backupDir);
-
-            String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-            String fileName = "library_backup_" +
-                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss")) + ".db";
-
-            Path target = backupDir.resolve(fileName);
-            Files.copy(Path.of(DB_PATH), target, StandardCopyOption.REPLACE_EXISTING);
-            Files.writeString(Path.of(BACKUP_META_FILE), stamp + " | " + target.toString());
-
+        com.library.service.BackupService backupService = new com.library.service.BackupService();
+        String result = backupService.performManualBackup();
+        if (result != null) {
             refreshSystemInfo();
-            showAlert("Success", "Database backup completed: " + target);
-        } catch (Exception e) {
-            showAlert("Error", "Backup failed: " + e.getMessage());
+            showAlert("Success", "Database backup completed: " + result);
+        } else {
+            showAlert("Error", "Backup failed. Check logs for details.");
         }
     }
 

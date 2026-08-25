@@ -20,11 +20,12 @@ public class BookService {
                 accession_number, classification_number,
                 cutter_number, edition, publisher,
                 place_of_publication, year_of_publication,
-                number_of_pages
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                number_of_pages, price, branch_id
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """;
         try {
             Connection conn = DatabaseConnection.getConnection();
+ appmod/java-upgrade-20260820064317
             try (PreparedStatement count = conn.prepareStatement("SELECT COUNT(*) FROM books")) {
                 ResultSet result = count.executeQuery();
                 if (result.next() && !licenseService.canAddBook(result.getInt(1))) {
@@ -35,6 +36,9 @@ public class BookService {
             String scopedSql = sql.replace(") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 ", branch_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
             PreparedStatement stmt = conn.prepareStatement(scopedSql);
+
+            PreparedStatement stmt = conn.prepareStatement(sql);
+ main
             stmt.setString(1, book.getTitle());
             stmt.setString(2, book.getAuthor());
             stmt.setString(3, book.getIsbn());
@@ -49,7 +53,8 @@ public class BookService {
             stmt.setString(12, book.getPlaceOfPublication());
             stmt.setInt(13, book.getYearOfPublication());
             stmt.setInt(14, book.getNumberOfPages());
-            stmt.setObject(15, BranchScope.branchId());
+            stmt.setDouble(15, book.getPrice());
+            stmt.setObject(16, BranchScope.branchId());
             stmt.executeUpdate();
             System.out.println("✓ Book added: " + book.getTitle());
             return true;
@@ -68,7 +73,7 @@ public class BookService {
                 accession_number = ?, classification_number = ?,
                 cutter_number = ?, edition = ?, publisher = ?,
                 place_of_publication = ?, year_of_publication = ?,
-                number_of_pages = ?
+                number_of_pages = ?, price = ?
             WHERE id = ?
         """;
         try {
@@ -88,8 +93,9 @@ public class BookService {
             stmt.setString(11, book.getPlaceOfPublication());
             stmt.setInt(12, book.getYearOfPublication());
             stmt.setInt(13, book.getNumberOfPages());
-            stmt.setInt(14, book.getId());
-            BranchScope.bind(stmt, 15);
+            stmt.setDouble(14, book.getPrice());
+            stmt.setInt(15, book.getId());
+            BranchScope.bind(stmt, 16);
             stmt.executeUpdate();
             System.out.println("✓ Book updated: " + book.getTitle());
             return true;
@@ -139,7 +145,7 @@ public class BookService {
                    accession_number, classification_number,
                    cutter_number, edition, publisher,
                    place_of_publication, year_of_publication,
-                   number_of_pages
+                   number_of_pages, price
             FROM books
             WHERE (
                     title            LIKE ?
@@ -178,7 +184,7 @@ public class BookService {
                    accession_number, classification_number,
                    cutter_number, edition, publisher,
                    place_of_publication, year_of_publication,
-                   number_of_pages
+                   number_of_pages, price
             FROM books
             WHERE (
                     title                 LIKE ?
@@ -221,7 +227,7 @@ public class BookService {
                                    accession_number, classification_number,
                                    cutter_number, edition, publisher,
                                    place_of_publication, year_of_publication,
-                                   number_of_pages
+                                number_of_pages, price
                             FROM books
                             WHERE accession_number IS NOT NULL
                             AND   accession_number != ''
@@ -388,7 +394,7 @@ public class BookService {
                     "SELECT id, title, author, isbn, category, " +
                     "total_copies, available_copies, accession_number, " +
                     "classification_number, cutter_number, edition, publisher, " +
-                    "place_of_publication, year_of_publication, number_of_pages " +
+                    "place_of_publication, year_of_publication, number_of_pages, price " +
                     "FROM books WHERE id = ?" + BranchScope.andClause("branch_id")
                 );
             stmt.setInt(1, bookId);
@@ -436,7 +442,8 @@ public class BookService {
             rs.getString("publisher"),
             rs.getString("place_of_publication"),
             rs.getInt("year_of_publication"),
-            rs.getInt("number_of_pages")
+            rs.getInt("number_of_pages"),
+            rs.getDouble("price")
         );
     }
 }

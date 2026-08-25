@@ -1,9 +1,9 @@
 package com.library.controller;
 
-import com.itextpdf.text.*;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfWriter;
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
 import com.library.database.DatabaseConnection;
 import com.library.model.ReportRecord;
 import com.library.model.User;
@@ -706,7 +706,7 @@ public class ReportsController {
                 case "PDF" -> savePdf(reportType, filename, columnNames, data);
                 default -> null;
             };
-        } catch (IOException | com.itextpdf.text.DocumentException e) {
+        } catch (IOException | com.lowagie.text.DocumentException e) {
             showError("Could not save file: " + e.getMessage());
             return null;
         }
@@ -714,7 +714,7 @@ public class ReportsController {
 
     private String saveExcel(String filename, String[] columnNames,
                              ObservableList<ObservableList<String>> data)
-            throws IOException, com.itextpdf.text.DocumentException {
+            throws IOException, com.lowagie.text.DocumentException {
         String filePath = REPORTS_BASE + "/excel/" + filename + ".xlsx";
         Workbook wb = new XSSFWorkbook();
         Sheet sheet = wb.createSheet("Report");
@@ -753,7 +753,7 @@ public class ReportsController {
 
     private String saveCsv(String filename, String[] columnNames,
                            ObservableList<ObservableList<String>> data)
-            throws IOException, com.itextpdf.text.DocumentException {
+            throws IOException, com.lowagie.text.DocumentException {
         String filePath = REPORTS_BASE + "/csv/" + filename + ".csv";
         try (PrintWriter pw = new PrintWriter(
                 new OutputStreamWriter(
@@ -770,7 +770,7 @@ public class ReportsController {
 
     private String savePdf(String reportType, String filename, String[] columnNames,
                            ObservableList<ObservableList<String>> data)
-            throws IOException, com.itextpdf.text.DocumentException {
+            throws IOException, com.lowagie.text.DocumentException {
         String filePath = REPORTS_BASE + "/pdf/" + filename + ".pdf";
         Document doc = new Document(PageSize.A4.rotate());
         PdfWriter.getInstance(doc, new FileOutputStream(filePath));
@@ -792,7 +792,7 @@ public class ReportsController {
         for (String col : columnNames) {
             PdfPCell cell = new PdfPCell(new Phrase(col,
                     FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9)));
-            cell.setBackgroundColor(new BaseColor(79, 70, 229));
+            cell.setBackgroundColor(new java.awt.Color(79, 70, 229));
             cell.setPadding(3);
             table.addCell(cell);
         }
